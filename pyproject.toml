@@ -1,0 +1,36 @@
+[project]
+name = "miracl-static-embeddings"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "astraberte9@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastembed",
+    "hf-xet>=1.7.0",
+    "qdrant-client>=1.19.1",
+    "tokenizers>=1.0.0rc2",
+]
+
+[project.scripts]
+miracl-static-embeddings = "miracl_static_embeddings:main"
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = [
+    "packages/download-queries",
+]
+
+[tool.uv.sources]
+fastembed = { git = "https://github.com/qdrant/fastembed", rev = "minishlab-numpy-tokenizers-v1" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.1",
+    "ty>=0.0.88",
+]
