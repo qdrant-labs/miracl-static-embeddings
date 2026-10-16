@@ -68,7 +68,7 @@ def load_data(
     embed_times: list[float] = []
     upload_times: list[float] = []
     dataset = load_dataset(
-        DATASET_ID, DATASET_SUBSET, split="train", streaming=True, token=True
+        DATASET_ID, DATASET_SUBSET, split="train", streaming=True, token=True, revision="refs/convert/parquet"
     )
 
     for d in dataset:
