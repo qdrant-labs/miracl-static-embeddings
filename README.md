@@ -76,8 +76,10 @@ stat-bench create --config configs/potion-32M-scalar.json
 Streams `miracl/miracl-corpus` (English), embeds it with the configured model and uploads it in batches.
 
 ```bash
-stat-bench load --config configs/potion-32M-scalar.json [--buffer-size 256]
+stat-bench load --config configs/potion-32M-scalar.json [--buffer-size 256] [--timings-output load_timings.json]
 ```
+
+Per-batch embedding and upload times are saved to `--timings-output`, together with min/p50/p95/p99/max (in seconds) for each.
 
 ### 4. Search and evaluate
 

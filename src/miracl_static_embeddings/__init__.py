@@ -3,7 +3,9 @@ import itertools
 import json
 import logging
 from collections.abc import Sequence
+from typing import NamedTuple
 
+import numpy as np
 from datasets import load_dataset
 from download_queries import load_qrels, load_queries
 
@@ -23,15 +25,48 @@ DATASET_ID = "miracl/miracl-corpus"
 DATASET_SUBSET = "en"
 
 
+class LoadTimings(NamedTuple):
+    embedding_times: list[float]
+    upload_times: list[float]
+
+
+def summarize_times(times: Sequence[float]) -> dict[str, float | int]:
+    """Min, p50, p95, p99, max (in seconds) and count of per-batch durations."""
+    if len(times) == 0:
+        return {"count": 0}
+    arr = np.asarray(times, dtype=float)
+    p50, p95, p99 = np.percentile(arr, [50, 95, 99])
+    return {
+        "count": len(arr),
+        "min": float(arr.min()),
+        "p50": float(p50),
+        "p95": float(p95),
+        "p99": float(p99),
+        "max": float(arr.max()),
+    }
+
+
+def save_timings(timings: LoadTimings, output_file: str) -> None:
+    d = {
+        name: {"stats": summarize_times(times), "per_batch": times}
+        for name, times in (
+            ("embedding_time", timings.embedding_times),
+            ("upload_time", timings.upload_times),
+        )
+    }
+    with open(output_file, "w") as f:
+        json.dump(d, f, indent=2)
+
+
 def load_data(
     model: ModelType,
     collection_name: str,
     hybrid_search: bool = False,
     max_buffer_size: int = DEFAULT_BUFFER_SIZE,
-) -> None:
+) -> LoadTimings:
     buf = UploadBuffer(model=model, max_buffer_size=max_buffer_size)
-    embed_times = []
-    upload_times = []
+    embed_times: list[float] = []
+    upload_times: list[float] = []
     dataset = load_dataset(
         DATASET_ID, DATASET_SUBSET, split="train", streaming=True, token=True
     )
@@ -50,8 +85,12 @@ def load_data(
             logger.info(f"Uploaded {buf.max_buffer_size} points to Qdrant")
 
     if len(buf) > 0:
-        buf.flush(collection_name, hybrid_search)
+        durations = buf.flush(collection_name, hybrid_search)
+        embed_times.append(durations.embedding_time)
+        upload_times.append(durations.upload_time)
         logger.info("Uploaded remaining points to Qdrant")
+
+    return LoadTimings(embedding_times=embed_times, upload_times=upload_times)
 
 
 def run_searches(
@@ -106,12 +145,13 @@ def _cmd_create(args: argparse.Namespace) -> None:
 
 def _cmd_load(args: argparse.Namespace) -> None:
     config = load_config(args.config)
-    load_data(
+    timings = load_data(
         model=config.model_name,
         collection_name=config.name,
         hybrid_search=config.hybrid_search,
         max_buffer_size=args.buffer_size,
     )
+    save_timings(timings, args.timings_output)
 
 
 def _cmd_search(args: argparse.Namespace) -> None:
@@ -145,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
     load = sub.add_parser("load", help="Embed and upload the MIRACL corpus")
     load.add_argument("--config", required=True, help="Path to collection config")
     load.add_argument("--buffer-size", type=int, default=DEFAULT_BUFFER_SIZE)
+    load.add_argument("--timings-output", default="load_timings.json")
     load.set_defaults(func=_cmd_load)
 
     srch = sub.add_parser("search", help="Run queries (and evaluate if --qrels given)")
