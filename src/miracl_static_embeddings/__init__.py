@@ -21,8 +21,6 @@ from .qdrant import (
 )
 
 logger = logging.getLogger(__name__)
-DATASET_ID = "miracl/miracl-corpus"
-DATASET_SUBSET = "en"
 
 
 class LoadTimings(NamedTuple):
@@ -68,7 +66,10 @@ def load_data(
     embed_times: list[float] = []
     upload_times: list[float] = []
     dataset = load_dataset(
-        DATASET_ID, DATASET_SUBSET, split="train", streaming=True, token=True, revision="refs/convert/parquet"
+        "json",
+        data_files="hf://datasets/miracl/miracl-corpus/miracl-corpus-v1.0-en/*.jsonl.gz",
+        split="train",
+        streaming=True,
     )
 
     for d in dataset:
