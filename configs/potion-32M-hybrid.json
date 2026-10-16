@@ -1,0 +1,7 @@
+{
+  "name": "miracl-potion-32M-hybrid",
+  "model_name": "minishlab/potion-retrieval-32M",
+  "datatype": "float32",
+  "quantization": null,
+  "hybrid_search": true
+}

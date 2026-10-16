@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Literal
 
@@ -5,14 +6,19 @@ from fastembed.text.static_embedding import StaticTextEmbedding
 
 ModelType = Literal[
     "minishlab/potion-base-8M",
-    "minishlab/potion-base-32M",
+    "minishlab/potion-retrieval-32M",
     "minishlab/potion-multilingual-128M",
 ]
 Embedding = list[float]
 MODELS: dict[ModelType, str] = {
     "minishlab/potion-base-8M": "models/8M",
-    "minishlab/potion-base-32M": "models/32M",
+    "minishlab/potion-retrieval-32M": "models/32M",
     "minishlab/potion-multilingual-128M": "models/128M",
+}
+DIMENSIONS: dict[ModelType, int] = {
+    "minishlab/potion-base-8M": 256,
+    "minishlab/potion-retrieval-32M": 512,
+    "minishlab/potion-multilingual-128M": 256,
 }
 
 
@@ -23,9 +29,7 @@ def get_model(model_name: ModelType) -> StaticTextEmbedding:
     )
 
 
-def embed_documents(
-    model: StaticTextEmbedding, documents: list[str]
-) -> list[Embedding]:
+def embed(model: StaticTextEmbedding, documents: Iterable[str]) -> list[Embedding]:
     embd = model.embed(documents)
 
     embeddings = []
@@ -34,9 +38,3 @@ def embed_documents(
         embeddings.append(i.tolist())
 
     return embeddings
-
-
-def embed_query(model: StaticTextEmbedding, query: str) -> Embedding:
-    embs = embed_documents(model, [query])
-
-    return embs[0]

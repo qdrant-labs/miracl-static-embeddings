@@ -1,0 +1,7 @@
+{
+  "name": "miracl-potion-128M-dense",
+  "model_name": "minishlab/potion-multilingual-128M",
+  "datatype": "float32",
+  "quantization": null,
+  "hybrid_search": false
+}

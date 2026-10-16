@@ -8,14 +8,17 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "datasets>=5.1.0",
     "fastembed",
     "hf-xet>=1.7.0",
     "qdrant-client>=1.19.1",
-    "tokenizers>=1.0.0rc2",
+    "tenacity>=9.2.1",
+    "tokenizers==1.0.0rc2",
+    "download-queries"
 ]
 
 [project.scripts]
-miracl-static-embeddings = "miracl_static_embeddings:main"
+stat-bench = "miracl_static_embeddings:main"
 
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
@@ -24,10 +27,19 @@ build-backend = "uv_build"
 [tool.uv.workspace]
 members = [
     "packages/download-queries",
+    "packages/download-models",
 ]
 
 [tool.uv.sources]
 fastembed = { git = "https://github.com/qdrant/fastembed", rev = "minishlab-numpy-tokenizers-v1" }
+download-queries = { workspace = true }
+
+[tool.uv]
+no-binary-package = ["tokenizers"]
+prerelease = "allow"
+
+[tool.uv.extra-build-variables]
+tokenizers = { MATURIN_PEP517_ARGS = "--features tk-encode/fancy-regex,tk-serialize/fancy-regex" }
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,7 @@
+{
+  "name": "miracl-potion-8M-dense",
+  "model_name": "minishlab/potion-base-8M",
+  "datatype": "float32",
+  "quantization": null,
+  "hybrid_search": false
+}
