@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import json
 import logging
 from collections.abc import Sequence
@@ -100,22 +101,28 @@ def run_searches(
     collection_name: str,
     output_file: str,
     hybrid_search: bool = False,
+    batch_size: int = 256,
 ) -> dict[str, list[tuple[str, float]]]:
     queries = load_queries(queries_file)
     model = get_model(model_name)
     client = get_qdrant_client()
     full_results: dict[str, list[tuple[str, float]]] = {}
-    for query_id, query in tqdm(queries.items()):
-        full_results[query_id] = search(
+    n_batches = -(-len(queries) // batch_size)
+    for b in tqdm(
+        itertools.batched(queries.items(), n=batch_size),
+        total=n_batches,
+        desc="Searching",
+        unit="batch",
+    ):
+        d = {el[0]: el[1] for el in b}
+        results = search(
             client,
             model,
             collection_name=collection_name,
-            query=query,
+            queries=d,
             hybrid_search=hybrid_search,
         )
-    empty = sum(1 for r in full_results.values() if not r)
-    if empty:
-        logger.warning("%d/%d queries returned no results", empty, len(queries))
+        full_results.update(results)
     with open(output_file, "w") as f:
         json.dump(full_results, f, indent=2)
     return full_results
@@ -163,6 +170,7 @@ def _cmd_search(args: argparse.Namespace) -> None:
         collection_name=config.name,
         output_file=args.output,
         hybrid_search=config.hybrid_search,
+        batch_size=args.batch_size,
     )
     if args.qrels is not None:
         evaluate_searches(args.qrels, results, args.eval_output)
@@ -192,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     srch.add_argument("--config", required=True, help="Path to collection config")
     srch.add_argument("--queries", required=True, help="Path to queries file")
     srch.add_argument("--output", default="search_results.json")
+    srch.add_argument("--batch-size", type=int, default=256)
     srch.add_argument(
         "--qrels", help="Path to qrels TSV file (TREC format); enables evaluation"
     )

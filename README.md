@@ -83,7 +83,7 @@ Per-batch embedding and upload times are saved to `--timings-output`, together w
 
 ### 4. Search and evaluate
 
-Run the queries and write the results to a JSON file. Queries are sent to Qdrant one at a time, and the top 10 hits per query are kept. A warning is logged if some queries return no results. Add `--qrels` to compute nDCG@10 in the same run:
+Run the queries and write the results to a JSON file. Queries are sent to Qdrant in batches (`--batch-size`, default 256), and the top 10 hits per query are kept. Add `--qrels` to compute nDCG@10 in the same run:
 
 ```bash
 stat-bench search \

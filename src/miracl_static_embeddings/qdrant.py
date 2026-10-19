@@ -1,5 +1,6 @@
 import os
 import uuid
+from collections import defaultdict
 from functools import lru_cache
 from typing import TypedDict
 
@@ -118,35 +119,48 @@ def search(
     client: QdrantClient,
     embedding_model: StaticTextEmbedding,
     collection_name: str,
-    query: str,
+    queries: dict[str, str],
     hybrid_search: bool = False,
-    limit: int = 10,
-) -> list[tuple[str, float]]:
-    """Run a single query, returning (docid, score) pairs, best first."""
-    (query_vec,) = embed(embedding_model, [query])
+) -> dict[str, list[tuple[str, float]]]:
+    query_vecs = embed(embedding_model, queries.values())
+    query_docs = zip(queries.values(), query_vecs)
     if hybrid_search:
-        response = client.query_points(
+        results = client.query_batch_points(
             collection_name=collection_name,
-            prefetch=[
-                models.Prefetch(query=query_vec, using="dense", limit=50),
-                models.Prefetch(
-                    query=models.Document(text=query, model="qdrant/bm25"),
-                    using="sparse",
-                    limit=50,
-                ),
+            requests=[
+                models.QueryRequest(
+                    prefetch=[
+                        models.Prefetch(query=query_vec, using="dense", limit=50),
+                        models.Prefetch(
+                            query=models.Document(text=query, model="qdrant/bm25"),
+                            using="sparse",
+                            limit=50,
+                        ),
+                    ],
+                    query=models.RrfQuery(rrf=models.Rrf()),
+                    limit=10,
+                    with_payload=True,
+                )
+                for (query, query_vec) in query_docs
             ],
-            query=models.RrfQuery(rrf=models.Rrf()),
-            limit=limit,
-            with_payload=True,
         )
     else:
-        response = client.query_points(
+        results = client.query_batch_points(
             collection_name=collection_name,
-            query=query_vec,
-            using="dense",
-            limit=limit,
-            with_payload=True,
+            requests=[
+                models.QueryRequest(
+                    query=query_vec, using="dense", limit=10, with_payload=True
+                )
+                for query_vec in query_vecs
+            ],
         )
 
-    points = sorted(response.points, key=lambda x: x.score, reverse=True)
-    return [(p.payload["docid"], p.score) for p in points if p.payload is not None]
+    query_keys = list(queries.keys())
+    query_results: defaultdict[str, list[tuple[str, float]]] = defaultdict(list)
+    for i, r in enumerate(results):
+        points = sorted(r.points, key=lambda x: x.score, reverse=True)
+        for p in points:
+            if p.payload is not None:
+                query_results[query_keys[i]].append((p.payload["docid"], p.score))
+
+    return query_results
