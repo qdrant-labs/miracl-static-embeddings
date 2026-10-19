@@ -96,6 +96,11 @@ def update_quantization(
     )
 
 
+_MISSING_SPARSE = models.Filter(
+    must_not=[models.HasVectorCondition(has_vector="sparse")]
+)
+
+
 @with_retry
 def _scroll_texts(
     client: QdrantClient,
@@ -109,6 +114,7 @@ def _scroll_texts(
         offset=offset,
         with_payload=["text"],
         with_vectors=False,
+        scroll_filter=_MISSING_SPARSE,
     )
     batch = [
         (r.id, r.payload["text"]) for r in records if r.payload and "text" in r.payload
@@ -140,8 +146,8 @@ def add_sparse_vector(
     """Add a BM25 `sparse` vector to an existing dense collection and fill it.
 
     The text is read back from the points' payload, so the dense vectors are
-    neither recomputed nor re-uploaded. Safe to re-run: existing sparse vector
-    config is kept and already-filled points are simply overwritten.
+    neither recomputed nor re-uploaded. Safe to re-run after a failure: only
+    points that don't have a sparse vector yet are processed.
     """
     info = client.get_collection(collection_name)
     if "sparse" not in (info.config.params.sparse_vectors or {}):
@@ -153,7 +159,9 @@ def add_sparse_vector(
             ),
         )
 
-    total = client.count(collection_name, exact=True).count
+    total = client.count(
+        collection_name, count_filter=_MISSING_SPARSE, exact=True
+    ).count
     offset: models.ExtendedPointId | None = None
     with tqdm(total=total, desc="Adding sparse vectors", unit="point") as bar:
         while True:
