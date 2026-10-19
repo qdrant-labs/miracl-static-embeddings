@@ -7,6 +7,7 @@ from typing import NamedTuple
 import numpy as np
 from datasets import load_dataset
 from download_queries import load_qrels, load_queries
+from tqdm import tqdm
 
 from miracl_static_embeddings.evaluation import evaluate_ndcg
 
@@ -104,7 +105,7 @@ def run_searches(
     model = get_model(model_name)
     client = get_qdrant_client()
     full_results: dict[str, list[tuple[str, float]]] = {}
-    for query_id, query in queries.items():
+    for query_id, query in tqdm(queries.items()):
         full_results[query_id] = search(
             client,
             model,
