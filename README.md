@@ -79,7 +79,11 @@ Streams `miracl/miracl-corpus` (English), embeds it with the configured model an
 stat-bench load --config configs/potion-32M-scalar.json [--buffer-size 256] [--timings-output load_timings.json]
 ```
 
-Per-batch embedding and upload times are saved to `--timings-output`, together with min/p50/p95/p99/max (in seconds) for each.
+Per-batch embedding and upload times are saved to `--timings-output`, together with min/p50/p95/p99/max (in seconds) for each. To print the stats from a saved file:
+
+```bash
+stat-bench timings load_timings.json
+```
 
 ### 4. Search and evaluate
 
@@ -103,7 +107,40 @@ stat-bench evaluate \
   --output evaluation.json
 ```
 
-Queries and qrels are TSV files (qrels in TREC format). The evaluation output contains the mean nDCG@10 and the per-query scores.
+Queries and qrels are TSV files (qrels in TREC format). The evaluation output contains the mean and per-query scores for nDCG@10, MRR@10 and recall@10. Queries with no relevant judgments score 0 in all three metrics.
+
+### 5. Compare quantization without re-uploading
+
+Datatype and model are fixed when a collection is created, but quantization can be swapped on an existing collection. Load a collection once (for example with `configs/potion-32M-dense.json`), then apply the quantization of another config to it:
+
+```bash
+stat-bench quantize \
+  --config configs/potion-32M-scalar.json \
+  --collection miracl-potion-32M-dense
+```
+
+The command updates the `dense` vector's quantization, then waits until the collection is green again (the optimizers re-quantize the data). A config with `"quantization": null` disables quantization. The config's `datatype` must match the collection's, so `turbo4` configs still need their own collection.
+
+Then search the same collection with the new quantization by passing `--collection` to `search`:
+
+```bash
+stat-bench search \
+  --config configs/potion-32M-scalar.json \
+  --collection miracl-potion-32M-dense \
+  --queries ... --qrels ... --output scalar_output.json --eval-output scalar_eval.json
+```
+
+### 6. Build a hybrid collection from a dense one
+
+A hybrid collection is a dense collection plus a BM25 `sparse` vector. To avoid re-embedding and re-uploading the dense vectors, add the sparse vector to a collection you already loaded:
+
+```bash
+stat-bench add-sparse \
+  --config configs/potion-32M-hybrid.json \
+  --collection miracl-potion-32M-dense
+```
+
+The command creates the `sparse` named vector, reads each point's `text` back from its payload and writes the BM25 vector with `update_vectors`, then waits for the collection to be green. It can be re-run if interrupted. Afterwards search it with the hybrid config and `--collection`, as in step 5. The dense vector is untouched, so the same collection can still be searched dense-only with a config that has `hybrid_search: false`.
 
 ## Development
 

@@ -10,15 +10,22 @@ from datasets import load_dataset
 from download_queries import load_qrels, load_queries
 from tqdm import tqdm
 
-from miracl_static_embeddings.evaluation import evaluate_ndcg
+from miracl_static_embeddings.evaluation import (
+    evaluate_mrr,
+    evaluate_ndcg,
+    evaluate_recall,
+)
 
 from .buffer import DEFAULT_BUFFER_SIZE, UploadBuffer
 from .embed import ModelType, get_model
 from .qdrant import (
     CollectionConfig,
+    add_sparse_vector,
     create_collection,
     get_qdrant_client,
     search,
+    update_quantization,
+    wait_for_green,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,10 +141,32 @@ def evaluate_searches(
     output_file: str,
 ) -> None:
     qrels = load_qrels(qrels_file)
-    mean_ndcg, per_quer_ndcg = evaluate_ndcg(qrels, search_results)
-    d = {"ndcg@10": {"mean": mean_ndcg, "per_query": per_quer_ndcg}}
+    d = {
+        name: {"mean": mean, "per_query": per_query}
+        for name, (mean, per_query) in (
+            ("ndcg@10", evaluate_ndcg(qrels, search_results)),
+            ("mrr@10", evaluate_mrr(qrels, search_results)),
+            ("recall@10", evaluate_recall(qrels, search_results)),
+        )
+    }
     with open(output_file, "w") as f:
         json.dump(d, f, indent=2)
+
+
+def print_timings(timings_file: str) -> None:
+    with open(timings_file) as f:
+        data = json.load(f)
+    stat_names = ("count", "min", "p50", "p95", "p99", "max")
+    print(f"{'':<16}" + "".join(f"{n:>12}" for n in stat_names))
+    for name, section in data.items():
+        stats = summarize_times(section["per_batch"])
+        row = "".join(
+            f"{stats[n]:>12d}" if n == "count" else f"{stats[n]:>12.4f}"
+            for n in stat_names
+            if n in stats
+        )
+        print(f"{name:<16}{row}")
+    print("(times in seconds, per batch)")
 
 
 def load_config(path: str) -> CollectionConfig:
@@ -149,6 +178,27 @@ def _cmd_create(args: argparse.Namespace) -> None:
     config = load_config(args.config)
     create_collection(get_qdrant_client(), config)
     logger.info("Created collection %s", config.name)
+
+
+def _cmd_quantize(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    collection = args.collection or config.name
+    client = get_qdrant_client()
+    update_quantization(client, collection, config)
+    logger.info("Updated quantization of %s, waiting for optimizers", collection)
+    wait_for_green(client, collection)
+    logger.info("Collection %s is green", collection)
+
+
+def _cmd_add_sparse(args: argparse.Namespace) -> None:
+    config = load_config(args.config)
+    if not config.hybrid_search:
+        raise SystemExit(f"{args.config} has `hybrid_search: false`, nothing to add")
+    collection = args.collection or config.name
+    client = get_qdrant_client()
+    add_sparse_vector(client, collection, batch_size=args.batch_size)
+    wait_for_green(client, collection)
+    logger.info("Collection %s is green", collection)
 
 
 def _cmd_load(args: argparse.Namespace) -> None:
@@ -167,13 +217,17 @@ def _cmd_search(args: argparse.Namespace) -> None:
     results = run_searches(
         queries_file=args.queries,
         model_name=config.model_name,
-        collection_name=config.name,
+        collection_name=args.collection or config.name,
         output_file=args.output,
         hybrid_search=config.hybrid_search,
         batch_size=args.batch_size,
     )
     if args.qrels is not None:
         evaluate_searches(args.qrels, results, args.eval_output)
+
+
+def _cmd_timings(args: argparse.Namespace) -> None:
+    print_timings(args.timings)
 
 
 def _cmd_evaluate(args: argparse.Namespace) -> None:
@@ -190,6 +244,27 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--config", required=True, help="Path to collection config")
     create.set_defaults(func=_cmd_create)
 
+    quant = sub.add_parser(
+        "quantize",
+        help="Apply a config's quantization to an existing collection (no re-upload)",
+    )
+    quant.add_argument("--config", required=True, help="Path to collection config")
+    quant.add_argument(
+        "--collection", help="Collection to update (default: the config's name)"
+    )
+    quant.set_defaults(func=_cmd_quantize)
+
+    sparse = sub.add_parser(
+        "add-sparse",
+        help="Add BM25 sparse vectors to an existing collection (no dense re-upload)",
+    )
+    sparse.add_argument("--config", required=True, help="Path to a hybrid config")
+    sparse.add_argument(
+        "--collection", help="Collection to update (default: the config's name)"
+    )
+    sparse.add_argument("--batch-size", type=int, default=256)
+    sparse.set_defaults(func=_cmd_add_sparse)
+
     load = sub.add_parser("load", help="Embed and upload the MIRACL corpus")
     load.add_argument("--config", required=True, help="Path to collection config")
     load.add_argument("--buffer-size", type=int, default=DEFAULT_BUFFER_SIZE)
@@ -198,6 +273,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     srch = sub.add_parser("search", help="Run queries (and evaluate if --qrels given)")
     srch.add_argument("--config", required=True, help="Path to collection config")
+    srch.add_argument(
+        "--collection", help="Collection to search (default: the config's name)"
+    )
     srch.add_argument("--queries", required=True, help="Path to queries file")
     srch.add_argument("--output", default="search_results.json")
     srch.add_argument("--batch-size", type=int, default=256)
@@ -207,13 +285,20 @@ def build_parser() -> argparse.ArgumentParser:
     srch.add_argument("--eval-output", default="evaluation.json")
     srch.set_defaults(func=_cmd_search)
 
-    ev = sub.add_parser("evaluate", help="Compute nDCG@10 from saved search results")
+    ev = sub.add_parser(
+        "evaluate",
+        help="Compute nDCG@10, MRR@10 and recall@10 from saved search results",
+    )
     ev.add_argument("--results", required=True, help="Search results JSON")
     ev.add_argument(
         "--qrels", required=True, help="Path to qrels TSV file (TREC format)"
     )
     ev.add_argument("--output", default="evaluation.json")
     ev.set_defaults(func=_cmd_evaluate)
+
+    tm = sub.add_parser("timings", help="Print load timing stats from a timings file")
+    tm.add_argument("timings", help="Timings JSON written by `load`")
+    tm.set_defaults(func=_cmd_timings)
 
     return parser
 
