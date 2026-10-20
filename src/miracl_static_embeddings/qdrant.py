@@ -286,3 +286,8 @@ def search(
                 query_results[query_keys[i]].append((p.payload["docid"], p.score))
 
     return query_results
+
+
+@with_retry
+def delete_collection(client: QdrantClient, collection_name: str) -> None:
+    client.delete_collection(collection_name=collection_name)

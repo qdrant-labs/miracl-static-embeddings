@@ -1,0 +1,7 @@
+{
+  "name": "miracl-constella-zero-hybrid",
+  "model_name": "Qdrant/constella-zero",
+  "datatype": "float32",
+  "quantization": null,
+  "hybrid_search": true
+}

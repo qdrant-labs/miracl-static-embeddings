@@ -277,7 +277,7 @@ class StaticTextEmbedding(TextEmbeddingBase):
         if len(lengths) == 1 and not sqrt_counts:
             # A single text, typically a query: summing its rows skips the fixed cost of building
             # a count matrix, which dominates for short texts.
-            vectors = self.embeddings[rows] # pyright: ignore[reportArgumentType, reportCallIssue]
+            vectors = self.embeddings[rows]  # pyright: ignore[reportArgumentType, reportCallIssue]
             if self.weights is not None:
                 vectors = vectors * self.weights[ids, None]
             return vectors.sum(axis=0, keepdims=True, dtype=np.float32)
@@ -290,7 +290,7 @@ class StaticTextEmbedding(TextEmbeddingBase):
                     self._sum_rows(ids[:split], lengths[:half]),
                     self._sum_rows(ids[split:], lengths[half:]),
                 ]
-            ) # pyright: ignore[reportReturnType]
+            )  # pyright: ignore[reportReturnType]
         doc_index = np.repeat(np.arange(len(lengths)), lengths)
         counts = (
             np.bincount(
@@ -308,8 +308,8 @@ class StaticTextEmbedding(TextEmbeddingBase):
             if (
                 self.weights is not None
             ):  # rows are token ids: no sqrt model has a `mapping`
-                counts *= self.weights[distinct_rows] # pyright: ignore[reportArgumentType, reportCallIssue]
-        return counts @ self.embeddings[distinct_rows] # pyright: ignore[reportArgumentType, reportCallIssue]
+                counts *= self.weights[distinct_rows]  # pyright: ignore[reportArgumentType, reportCallIssue]
+        return counts @ self.embeddings[distinct_rows]  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     def embed(
         self,

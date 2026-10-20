@@ -1,7 +1,0 @@
-{
-  "name": "miracl-potion-32M-turbo4",
-  "model_name": "minishlab/potion-retrieval-32M",
-  "datatype": "turbo4",
-  "quantization": null,
-  "hybrid_search": false
-}

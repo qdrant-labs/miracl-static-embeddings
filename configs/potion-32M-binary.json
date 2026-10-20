@@ -1,7 +1,0 @@
-{
-  "name": "miracl-potion-32M-binary",
-  "model_name": "minishlab/potion-retrieval-32M",
-  "datatype": "float32",
-  "quantization": {"binary": {"memory": "pinned"}},
-  "hybrid_search": false
-}

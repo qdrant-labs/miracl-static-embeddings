@@ -22,6 +22,7 @@ from .qdrant import (
     CollectionConfig,
     add_sparse_vector,
     create_collection,
+    delete_collection,
     get_qdrant_client,
     search,
     update_quantization,
@@ -236,6 +237,10 @@ def _cmd_evaluate(args: argparse.Namespace) -> None:
     evaluate_searches(args.qrels, results, args.output)
 
 
+def _cmd_delete(args: argparse.Namespace) -> None:
+    delete_collection(get_qdrant_client(), args.collection)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="miracl-static-embeddings")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -299,6 +304,12 @@ def build_parser() -> argparse.ArgumentParser:
     tm = sub.add_parser("timings", help="Print load timing stats from a timings file")
     tm.add_argument("timings", help="Timings JSON written by `load`")
     tm.set_defaults(func=_cmd_timings)
+
+    delt = sub.add_parser(
+        "delete", help="Delete a collection after you're done with evals"
+    )
+    delt.add_argument("collection", help="Name of the collection to delete")
+    delt.set_defaults(func=_cmd_delete)
 
     return parser
 
