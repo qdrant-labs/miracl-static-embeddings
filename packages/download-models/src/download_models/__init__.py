@@ -1,3 +1,5 @@
+import sys
+import warnings
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
@@ -11,7 +13,20 @@ MODELS: dict[str, tuple[str, str]] = {
 
 
 def main() -> None:
+    models = sys.argv[1:]
+    validated = []
+    for m in models:
+        if m not in MODELS:
+            warnings.warn(
+                f"{m} not in the allowed models ({', '.join(MODELS.keys())}). It will be skipped",
+                UserWarning,
+            )
+            continue
+        validated.append(m)
     for model, (path, ref) in MODELS.items():
+        if len(validated) > 0 and model not in validated:
+            print(f"Skipping {model} as it is not among the requested ones")
+            continue
         print(f"Downloading safetensors model and tokenizer for {model}")
         print()
         p = Path(path)

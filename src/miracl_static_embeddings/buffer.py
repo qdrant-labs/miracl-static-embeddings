@@ -1,10 +1,10 @@
 import time
 from typing import NamedTuple
 
-from fastembed.text.static_embedding import StaticTextEmbedding
 from qdrant_client import QdrantClient
 
 from .embed import ModelType, embed, get_model
+from .patch_fastembed import StaticTextEmbedding
 from .qdrant import DataPoint, get_qdrant_client, upload_points
 
 DEFAULT_BUFFER_SIZE = 256

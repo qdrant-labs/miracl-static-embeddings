@@ -5,12 +5,12 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import TypedDict, cast
 
-from fastembed.text.static_embedding import StaticTextEmbedding
 from pydantic import BaseModel
 from qdrant_client import QdrantClient, models
 from tqdm import tqdm
 
 from .embed import DIMENSIONS, Embedding, ModelType, embed
+from .patch_fastembed import StaticTextEmbedding
 from .retry import with_retry
 
 

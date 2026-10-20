@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from typing import Literal
 
-from fastembed.text.static_embedding import StaticTextEmbedding
+from .patch_fastembed import StaticTextEmbedding
 
 ModelType = Literal[
     "minishlab/potion-base-8M",
@@ -25,17 +25,10 @@ DIMENSIONS: dict[ModelType, int] = {
 }
 
 
-# Fastembed only supports a few model names
-def _alias_model_for_fastembed(model: ModelType) -> ModelType:
-    if model == "Qdrant/constella-zero":
-        return "minishlab/potion-retrieval-32M"
-    return model
-
-
 @lru_cache(maxsize=1, typed=True)
 def get_model(model_name: ModelType) -> StaticTextEmbedding:
     return StaticTextEmbedding(
-        model_name=_alias_model_for_fastembed(model_name),
+        model_name=model_name,
         specific_model_path=MODELS[model_name],
     )
 
