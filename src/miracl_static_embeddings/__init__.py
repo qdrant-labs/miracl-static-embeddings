@@ -70,6 +70,7 @@ def load_data(
     collection_name: str,
     hybrid_search: bool = False,
     max_buffer_size: int = DEFAULT_BUFFER_SIZE,
+    offset: int = 0,
 ) -> LoadTimings:
     buf = UploadBuffer(model=model, max_buffer_size=max_buffer_size)
     embed_times: list[float] = []
@@ -80,6 +81,8 @@ def load_data(
         split="train",
         streaming=True,
     )
+
+    dataset = dataset.skip(offset)
 
     for d in dataset:
         try:
@@ -209,6 +212,7 @@ def _cmd_load(args: argparse.Namespace) -> None:
         collection_name=config.name,
         hybrid_search=config.hybrid_search,
         max_buffer_size=args.buffer_size,
+        offset=args.offset,
     )
     save_timings(timings, args.timings_output)
 
@@ -274,6 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--config", required=True, help="Path to collection config")
     load.add_argument("--buffer-size", type=int, default=DEFAULT_BUFFER_SIZE)
     load.add_argument("--timings-output", default="load_timings.json")
+    load.add_argument("--offset", type=int, default=0)
     load.set_defaults(func=_cmd_load)
 
     srch = sub.add_parser("search", help="Run queries (and evaluate if --qrels given)")
