@@ -36,7 +36,7 @@ def get_qdrant_client() -> QdrantClient:
     if url is None:
         raise RuntimeError("Could not find `QDRANT_URL` in the current environment")
     return QdrantClient(
-        url=url, api_key=api_key, cloud_inference=True, prefer_grpc=True, timeout=60
+        url=url, api_key=api_key, cloud_inference=True, prefer_grpc=True, timeout=600
     )
 
 
@@ -243,6 +243,7 @@ def search(
     collection_name: str,
     queries: dict[str, str],
     hybrid_search: bool = False,
+    timeout: int | None = None,
 ) -> dict[str, list[tuple[str, float]]]:
     query_vecs = embed(embedding_model, queries.values())
     query_docs = zip(queries.values(), query_vecs)
@@ -265,6 +266,7 @@ def search(
                 )
                 for (query, query_vec) in query_docs
             ],
+            timeout=timeout,
         )
     else:
         results = client.query_batch_points(

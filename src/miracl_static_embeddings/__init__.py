@@ -113,6 +113,7 @@ def run_searches(
     output_file: str,
     hybrid_search: bool = False,
     batch_size: int = 256,
+    timeout: int | None = None,
 ) -> dict[str, list[tuple[str, float]]]:
     queries = load_queries(queries_file)
     model = get_model(model_name)
@@ -132,6 +133,7 @@ def run_searches(
             collection_name=collection_name,
             queries=d,
             hybrid_search=hybrid_search,
+            timeout=timeout,
         )
         full_results.update(results)
     with open(output_file, "w") as f:
@@ -226,6 +228,7 @@ def _cmd_search(args: argparse.Namespace) -> None:
         output_file=args.output,
         hybrid_search=config.hybrid_search,
         batch_size=args.batch_size,
+        timeout=args.timeout,
     )
     if args.qrels is not None:
         evaluate_searches(args.qrels, results, args.eval_output)
@@ -293,6 +296,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--qrels", help="Path to qrels TSV file (TREC format); enables evaluation"
     )
     srch.add_argument("--eval-output", default="evaluation.json")
+    srch.add_argument("--timeout", type=int, default=None)
     srch.set_defaults(func=_cmd_search)
 
     ev = sub.add_parser(
