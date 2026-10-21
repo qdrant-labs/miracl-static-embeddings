@@ -277,7 +277,7 @@ class StaticTextEmbedding(TextEmbeddingBase):
         if len(lengths) == 1 and not sqrt_counts:
             # A single text, typically a query: summing its rows skips the fixed cost of building
             # a count matrix, which dominates for short texts.
-            vectors = self.embeddings[rows]  # pyright: ignore[reportArgumentType, reportCallIssue]
+            vectors = self.embeddings[rows]  # pyright: ignore[reportArgumentType, reportCallIssue] # ty: ignore[invalid-argument-type]
             if self.weights is not None:
                 vectors = vectors * self.weights[ids, None]
             return vectors.sum(axis=0, keepdims=True, dtype=np.float32)

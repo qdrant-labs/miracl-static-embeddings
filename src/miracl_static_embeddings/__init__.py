@@ -238,6 +238,10 @@ def _cmd_timings(args: argparse.Namespace) -> None:
     print_timings(args.timings)
 
 
+def _cmd_preload_constella(args: argparse.Namespace) -> None:
+    get_model("Qdrant/stella-en-400M-v5-doc-onnx")
+
+
 def _cmd_evaluate(args: argparse.Namespace) -> None:
     with open(args.results) as f:
         results = json.load(f)
@@ -319,6 +323,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     delt.add_argument("collection", help="Name of the collection to delete")
     delt.set_defaults(func=_cmd_delete)
+
+    prel = sub.add_parser(
+        "preload-stella",
+        help="Preload `Qdrant/stella-en-400M-v5-doc-onnx` to avoid doing it at runtime",
+    )
+    prel.set_defaults(func=_cmd_preload_constella)
 
     return parser
 

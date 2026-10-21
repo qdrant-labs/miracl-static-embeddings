@@ -1,10 +1,10 @@
 import time
 from typing import NamedTuple
 
+from fastembed.text.text_embedding_base import TextEmbeddingBase
 from qdrant_client import QdrantClient
 
 from .embed import ModelType, embed, get_model
-from .patch_fastembed import StaticTextEmbedding
 from .qdrant import DataPoint, get_qdrant_client, upload_points
 
 DEFAULT_BUFFER_SIZE = 256
@@ -22,7 +22,7 @@ class UploadBuffer:
         self.max_buffer_size = max_buffer_size
         self.model_name = model
 
-        self._model: StaticTextEmbedding | None = None
+        self._model: TextEmbeddingBase | None = None
         self._client: QdrantClient = get_qdrant_client()
         self._buffer: list[DataPoint] = []
 

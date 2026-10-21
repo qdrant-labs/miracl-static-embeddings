@@ -1,0 +1,7 @@
+{
+  "name": "miracl-constella-zero-dense",
+  "model_name": "Qdrant/stella-en-400M-v5-doc-onnx",
+  "datatype": "float32",
+  "quantization": null,
+  "hybrid_search": false
+}
