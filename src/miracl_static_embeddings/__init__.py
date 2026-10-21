@@ -71,6 +71,7 @@ def load_data(
     hybrid_search: bool = False,
     max_buffer_size: int = DEFAULT_BUFFER_SIZE,
     offset: int = 0,
+    limit: int = 0,
 ) -> LoadTimings:
     buf = UploadBuffer(model=model, max_buffer_size=max_buffer_size)
     embed_times: list[float] = []
@@ -83,10 +84,14 @@ def load_data(
     )
 
     dataset = dataset.skip(offset)
+    uploaded = 0
 
     for d in dataset:
         try:
+            uploaded += 1
             buf.push(d["text"], d["title"], d["docid"])
+            if limit > 0 and uploaded >= limit:
+                break
         except KeyError:
             # malformed entry
             logger.warning("Unexpected schema in entry: %s", d)
@@ -215,6 +220,7 @@ def _cmd_load(args: argparse.Namespace) -> None:
         hybrid_search=config.hybrid_search,
         max_buffer_size=args.buffer_size,
         offset=args.offset,
+        limit=args.limit,
     )
     save_timings(timings, args.timings_output)
 
@@ -286,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--buffer-size", type=int, default=DEFAULT_BUFFER_SIZE)
     load.add_argument("--timings-output", default="load_timings.json")
     load.add_argument("--offset", type=int, default=0)
+    load.add_argument("--limit", type=int, default=-1)
     load.set_defaults(func=_cmd_load)
 
     srch = sub.add_parser("search", help="Run queries (and evaluate if --qrels given)")

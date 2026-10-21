@@ -3,9 +3,8 @@ from functools import lru_cache
 from typing import Literal
 
 from fastembed import TextEmbedding
+from fastembed.text.static_embedding import StaticTextEmbedding
 from fastembed.text.text_embedding_base import TextEmbeddingBase
-
-from .patch_fastembed import StaticTextEmbedding
 
 ModelType = Literal[
     "minishlab/potion-base-8M",

@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "datasets>=5.1.0",
-    "fastembed",
+    "patched-fastembed",
     "hf-xet>=1.7.0",
     "qdrant-client>=1.19.1",
     "tenacity>=9.2.1",
@@ -28,10 +28,11 @@ build-backend = "uv_build"
 members = [
     "packages/download-queries",
     "packages/download-models",
+    "packages/patched-fastembed",
 ]
 
 [tool.uv.sources]
-fastembed = { git = "https://github.com/qdrant/fastembed", rev = "minishlab-numpy-tokenizers-v1" }
+patched-fastembed = { workspace = true }
 download-queries = { workspace = true }
 
 [tool.uv]

@@ -18,6 +18,7 @@ members = [
     "download-models",
     "download-queries",
     "miracl-static-embeddings",
+    "patched-fastembed",
 ]
 
 [[package]]
@@ -392,23 +393,6 @@ dependencies = [
 requires-dist = [{ name = "huggingface-hub", specifier = ">=1.33.0" }]
 
 [[package]]
-name = "fastembed"
-version = "0.9.0"
-source = { git = "https://github.com/qdrant/fastembed?rev=minishlab-numpy-tokenizers-v1#0ef02935723a3a6f506da26aa364989f5a9f8a11" }
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "loguru" },
-    { name = "mmh3" },
-    { name = "numpy" },
-    { name = "onnxruntime" },
-    { name = "pillow" },
-    { name = "py-rust-stemmers" },
-    { name = "requests" },
-    { name = "tokenizers" },
-    { name = "tqdm" },
-]
-
-[[package]]
 name = "filelock"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -699,8 +683,8 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "download-queries" },
-    { name = "fastembed" },
     { name = "hf-xet" },
+    { name = "patched-fastembed" },
     { name = "qdrant-client" },
     { name = "tenacity" },
     { name = "tokenizers" },
@@ -716,8 +700,8 @@ dev = [
 requires-dist = [
     { name = "datasets", specifier = ">=5.1.0" },
     { name = "download-queries", editable = "packages/download-queries" },
-    { name = "fastembed", git = "https://github.com/qdrant/fastembed?rev=minishlab-numpy-tokenizers-v1" },
     { name = "hf-xet", specifier = ">=1.7.0" },
+    { name = "patched-fastembed", editable = "packages/patched-fastembed" },
     { name = "qdrant-client", specifier = ">=1.19.1" },
     { name = "tenacity", specifier = ">=9.2.1" },
     { name = "tokenizers", specifier = "==1.0.0rc2" },
@@ -1126,6 +1110,37 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/62/05/a7824c7a163fadf2e2a093cba28a9cd2c855b82cb5924f70939b528459bc/pandas-3.1.0rc0-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:845ff668f75c63f645a2b6ad46e1ce4e900b315b84484a81a6e47f1d6c04ba6f", size = 12884068, upload-time = "2026-09-30T13:58:18.377Z" },
     { url = "https://files.pythonhosted.org/packages/54/1e/38fe79f85281e430de4b9d8fcf2b3e9e1d7698e61585306be979937529bb/pandas-3.1.0rc0-cp315-cp315t-win_amd64.whl", hash = "sha256:8f38c6fc56b69bb9c4ffa53516e5f4035ac8c595b046e9ee5f478c61c2d1babd", size = 11234149, upload-time = "2026-09-30T13:58:22.286Z" },
     { url = "https://files.pythonhosted.org/packages/76/6a/b15938422858ae1945050341b8a10b9ee1c3a73068f5de67c3de00ac2b02/pandas-3.1.0rc0-cp315-cp315t-win_arm64.whl", hash = "sha256:65dd9a643b3a4e8c2a8e480d4e14a8c084a3223ad1677eda7f9a76f0b7a02736", size = 10566148, upload-time = "2026-09-30T13:58:25.554Z" },
+]
+
+[[package]]
+name = "patched-fastembed"
+version = "0.1.0"
+source = { editable = "packages/patched-fastembed" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "loguru" },
+    { name = "mmh3" },
+    { name = "numpy" },
+    { name = "onnxruntime" },
+    { name = "pillow" },
+    { name = "py-rust-stemmers" },
+    { name = "requests" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "huggingface-hub", specifier = ">=0.20,<2.0" },
+    { name = "loguru", specifier = ">=0.7.2,<0.8" },
+    { name = "mmh3", specifier = ">=4.1.0,<6.0.0" },
+    { name = "numpy", specifier = ">=2.1.0" },
+    { name = "onnxruntime", specifier = ">1.21.0,!=1.24.0,!=1.24.1" },
+    { name = "pillow", specifier = ">=11.0.0,<13.0" },
+    { name = "py-rust-stemmers", specifier = ">=0.1.0,<0.2" },
+    { name = "requests", specifier = ">=2.31,<3" },
+    { name = "tokenizers", specifier = "==1.0.0rc2" },
+    { name = "tqdm", specifier = ">=4.66,<5" },
 ]
 
 [[package]]

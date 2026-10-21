@@ -1,0 +1,182 @@
+from collections.abc import Iterable
+from typing import Any
+
+from ..common.model_description import DenseModelDescription, ModelSource
+from ..common.onnx_model import OnnxOutputContext
+from ..common.types import NumpyArray
+from ..common.utils import normalize
+from ..text.onnx_embedding import OnnxTextEmbedding, OnnxTextEmbeddingWorker
+from ..text.pooled_embedding import PooledEmbedding
+
+supported_pooled_normalized_models: list[DenseModelDescription] = [
+    DenseModelDescription(
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        dim=384,
+        description=(
+            "Text embeddings, Unimodal (text), English, 256 input tokens truncation, "
+            "Prefixes for queries/documents: not necessary, 2021 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.09,
+        sources=ModelSource(
+            hf="Qdrant/all-MiniLM-L6-v2-onnx",
+            _deprecated_tar_struct=True,
+        ),
+        model_file="model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-base-en",
+        dim=768,
+        description=(
+            "Text embeddings, Unimodal (text), English, 8192 input tokens truncation, "
+            "Prefixes for queries/documents: not necessary, 2023 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.52,
+        sources=ModelSource(hf="Xenova/jina-embeddings-v2-base-en"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-small-en",
+        dim=512,
+        description=(
+            "Text embeddings, Unimodal (text), English, 8192 input tokens truncation, "
+            "Prefixes for queries/documents: not necessary, 2023 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.12,
+        sources=ModelSource(hf="Xenova/jina-embeddings-v2-small-en"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-base-de",
+        dim=768,
+        description=(
+            "Text embeddings, Unimodal (text), Multilingual (German, English), 8192 input tokens truncation, "
+            "Prefixes for queries/documents: not necessary, 2024 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.64,
+        sources=ModelSource(hf="jinaai/jina-embeddings-v2-base-de"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-base-code",
+        dim=768,
+        description=(
+            "Text embeddings, Unimodal (text), Multilingual (English, 30 programming languages), "
+            "8192 input tokens truncation, Prefixes for queries/documents: not necessary, 2024 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.64,
+        sources=ModelSource(hf="jinaai/jina-embeddings-v2-base-code"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-base-zh",
+        dim=768,
+        description=(
+            "Text embeddings, Unimodal (text), supports mixed Chinese-English input text, "
+            "8192 input tokens truncation, Prefixes for queries/documents: not necessary, 2024 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.64,
+        sources=ModelSource(hf="jinaai/jina-embeddings-v2-base-zh"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="jinaai/jina-embeddings-v2-base-es",
+        dim=768,
+        description=(
+            "Text embeddings, Unimodal (text), supports mixed Spanish-English input text, "
+            "8192 input tokens truncation, Prefixes for queries/documents: not necessary, 2024 year."
+        ),
+        license="apache-2.0",
+        size_in_GB=0.64,
+        sources=ModelSource(hf="jinaai/jina-embeddings-v2-base-es"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="thenlper/gte-base",
+        dim=768,
+        description=(
+            "General text embeddings, Unimodal (text), supports English only input text, "
+            "512 input tokens truncation, Prefixes for queries/documents: not necessary, 2024 year."
+        ),
+        license="mit",
+        size_in_GB=0.44,
+        sources=ModelSource(hf="thenlper/gte-base"),
+        model_file="onnx/model.onnx",
+    ),
+    DenseModelDescription(
+        model="thenlper/gte-large",
+        dim=1024,
+        description=(
+            "Text embeddings, Unimodal (text), English, 512 input tokens truncation, "
+            "Prefixes for queries/documents: not necessary, 2023 year."
+        ),
+        license="mit",
+        size_in_GB=1.20,
+        sources=ModelSource(hf="Qdrant/gte-large-onnx"),
+        model_file="model.onnx",
+    ),
+    DenseModelDescription(
+        model="Qdrant/constella-nano",
+        dim=1024,
+        description=(
+            "Text embeddings, Unimodal (text), English, 512 input tokens truncation, "
+            "Query-side 34.5M-parameter transformer, embeds into the document space of "
+            "stella_en_400M_v5, Prefixes for queries/documents: not necessary, 2026 year."
+        ),
+        license="mit",
+        size_in_GB=0.14,
+        sources=ModelSource(hf="Qdrant/constella-nano"),
+        model_file="model.onnx",
+    ),
+]
+
+
+class PooledNormalizedEmbedding(PooledEmbedding):
+    @classmethod
+    def _get_worker_class(cls) -> type[OnnxTextEmbeddingWorker]:
+        return PooledNormalizedEmbeddingWorker
+
+    @classmethod
+    def _list_supported_models(cls) -> list[DenseModelDescription]:
+        """Lists the supported models.
+
+        Returns:
+            list[DenseModelDescription]: A list of DenseModelDescription objects containing the model information.
+        """
+        return supported_pooled_normalized_models
+
+    def _post_process_onnx_output(
+        self, output: OnnxOutputContext, **kwargs: Any
+    ) -> Iterable[NumpyArray]:
+        if output.attention_mask is None:
+            raise ValueError(
+                "attention_mask must be provided for document post-processing"
+            )
+
+        embeddings = output.model_output
+        attn_mask = output.attention_mask
+        # mean pooling returns float64, embeddings keep the dtype of the model,
+        # the cast goes after normalization to normalize in full precision
+        return normalize(self.mean_pooling(embeddings, attn_mask)).astype(
+            embeddings.dtype, copy=False
+        )
+
+
+class PooledNormalizedEmbeddingWorker(OnnxTextEmbeddingWorker):
+    def init_embedding(
+        self,
+        model_name: str,
+        cache_dir: str,
+        **kwargs: Any,
+    ) -> OnnxTextEmbedding:
+        return PooledNormalizedEmbedding(
+            model_name=model_name,
+            cache_dir=cache_dir,
+            threads=1,
+            **kwargs,
+        )

@@ -1,6 +1,6 @@
 .PHONY: test lint format format-check typecheck
 
-all: test lint lint-check format format-check typecheck
+all: test lint lint-check lint-unsafe format format-check typecheck
 
 lint-check:
 	$(info ****************** checking linting ******************)
@@ -9,6 +9,10 @@ lint-check:
 lint:
 	$(info ****************** linting ******************)
 	uv run ruff check --fix
+
+lint-unsafe:
+	$(info ****************** linting (unsafe fixes) ******************)
+	uv run ruff check --fix --unsafe-fixes
 
 format:
 	$(info ****************** formatting ******************)
