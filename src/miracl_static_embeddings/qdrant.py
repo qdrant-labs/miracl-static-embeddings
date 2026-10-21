@@ -277,6 +277,7 @@ def search(
                 )
                 for query_vec in query_vecs
             ],
+            timeout=timeout,
         )
 
     query_keys = list(queries.keys())
