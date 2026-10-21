@@ -17,6 +17,7 @@ from miracl_static_embeddings.evaluation import (
 )
 
 from .buffer import DEFAULT_BUFFER_SIZE, UploadBuffer
+from .corpus import read_jsonl
 from .embed import ModelType, get_model
 from .qdrant import (
     CollectionConfig,
@@ -72,18 +73,20 @@ def load_data(
     max_buffer_size: int = DEFAULT_BUFFER_SIZE,
     offset: int = 0,
     limit: int = 0,
+    corpus_file: str | None = None,
 ) -> LoadTimings:
     buf = UploadBuffer(model=model, max_buffer_size=max_buffer_size)
     embed_times: list[float] = []
     upload_times: list[float] = []
-    dataset = load_dataset(
-        "json",
-        data_files="hf://datasets/miracl/miracl-corpus/miracl-corpus-v1.0-en/*.jsonl.gz",
-        split="train",
-        streaming=True,
-    )
-
-    dataset = dataset.skip(offset)
+    if corpus_file is not None:
+        dataset = itertools.islice(read_jsonl(corpus_file), offset, None)
+    else:
+        dataset = load_dataset(
+            "json",
+            data_files="hf://datasets/miracl/miracl-corpus/miracl-corpus-v1.0-en/*.jsonl.gz",
+            split="train",
+            streaming=True,
+        ).skip(offset)
     uploaded = 0
 
     for d in dataset:
@@ -221,6 +224,7 @@ def _cmd_load(args: argparse.Namespace) -> None:
         max_buffer_size=args.buffer_size,
         offset=args.offset,
         limit=args.limit,
+        corpus_file=args.corpus_file,
     )
     save_timings(timings, args.timings_output)
 
@@ -293,6 +297,11 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--timings-output", default="load_timings.json")
     load.add_argument("--offset", type=int, default=0)
     load.add_argument("--limit", type=int, default=-1)
+    load.add_argument(
+        "--corpus-file",
+        help="Local JSONL corpus ({docid, title, text} per line) to load instead of "
+        "streaming MIRACL from the Hub",
+    )
     load.set_defaults(func=_cmd_load)
 
     srch = sub.add_parser("search", help="Run queries (and evaluate if --qrels given)")

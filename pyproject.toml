@@ -28,6 +28,7 @@ build-backend = "uv_build"
 members = [
     "packages/download-queries",
     "packages/download-models",
+    "packages/download-fiqa",
     "packages/patched-fastembed",
 ]
 

@@ -142,6 +142,23 @@ stat-bench add-sparse \
 
 The command creates the `sparse` named vector, reads each point's `text` back from its payload and writes the BM25 vector with `update_vectors`, then waits for the collection to be green. It can be re-run if interrupted. Afterwards search it with the hybrid config and `--collection`, as in step 5. The dense vector is untouched, so the same collection can still be searched dense-only with a config that has `hybrid_search: false`.
 
+### Try it on FiQA (smaller)
+
+[FiQA](https://huggingface.co/datasets/BeIR/fiqa) has about 58k documents and 648 test queries, which makes it a much quicker way to test the whole pipeline than MIRACL. `download-fiqa` converts it to the same layout as MIRACL (TSV queries, TREC qrels), so no other command changes:
+
+```bash
+uv run --package download-fiqa download-fiqa   # writes data/fiqa/
+
+stat-bench create --config configs/potion-8M-dense.json
+stat-bench load --config configs/potion-8M-dense.json --corpus-file data/fiqa/corpus.jsonl
+stat-bench search \
+  --config configs/potion-8M-dense.json \
+  --queries data/fiqa/queries.test.tsv \
+  --qrels data/fiqa/qrels.test.tsv
+```
+
+See [`packages/download-fiqa`](packages/download-fiqa/README.md) for the files it writes.
+
 ## Development
 
 ```bash
