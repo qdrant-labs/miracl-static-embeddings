@@ -14,6 +14,11 @@ from ..common.types import Device, NumpyArray, OnnxProvider
 from ..common.utils import iter_batch
 from ..parallel_processor import ParallelWorkerPool
 
+# Texts of a batch are sorted by length and run in chunks of this size, so that short
+# texts are not padded up to the longest one. Pass `micro_batch_size=None` (or 0) to
+# `embed` to disable it.
+DEFAULT_MICRO_BATCH_SIZE = 32
+
 
 class OnnxTextModel(OnnxModel[T]):
     ONNX_OUTPUT_NAMES: list[str] | None = None
@@ -95,18 +100,14 @@ class OnnxTextModel(OnnxModel[T]):
         **kwargs: Any,
     ) -> OnnxOutputContext:
         encoded = self.tokenize(documents, **kwargs)
-        input_ids = np.array([e.ids for e in encoded])
-        attention_mask = np.array([e.attention_mask for e in encoded])
+        input_ids = np.array([e.ids for e in encoded], dtype=np.int64)
+        attention_mask = np.array([e.attention_mask for e in encoded], dtype=np.int64)
         input_names = {node.name for node in self.model.get_inputs()}  # type: ignore[union-attr]
-        onnx_input: dict[str, NumpyArray] = {
-            "input_ids": np.array(input_ids, dtype=np.int64),
-        }
+        onnx_input: dict[str, NumpyArray] = {"input_ids": input_ids}
         if "attention_mask" in input_names:
-            onnx_input["attention_mask"] = np.array(attention_mask, dtype=np.int64)
+            onnx_input["attention_mask"] = attention_mask
         if "token_type_ids" in input_names:
-            onnx_input["token_type_ids"] = np.array(
-                [np.zeros(len(e), dtype=np.int64) for e in input_ids], dtype=np.int64
-            )
+            onnx_input["token_type_ids"] = np.zeros_like(input_ids)
         onnx_input = self._preprocess_onnx_input(onnx_input, **kwargs)
         model_output = self._run_model(
             onnx_input=onnx_input, onnx_output_names=self.ONNX_OUTPUT_NAMES
@@ -123,6 +124,38 @@ class OnnxTextModel(OnnxModel[T]):
     ) -> NumpyArray:
         return self.model.run(onnx_output_names, onnx_input)[0]  # type: ignore[union-attr]
 
+    def _embed_batch_sorted(
+        self, batch: list[str], micro_batch_size: int | None, **kwargs: Any
+    ) -> Iterable[T]:
+        """Embed `batch` in length-sorted chunks, yielding results in the input order.
+
+        Texts are sorted by character length (a cheap proxy for the token count that
+        avoids tokenizing twice), so each chunk is padded to a similar length.
+        """
+        if not micro_batch_size or len(batch) <= micro_batch_size:
+            yield from self._post_process_onnx_output(
+                self.onnx_embed(batch, **kwargs), **kwargs
+            )
+            return
+
+        order = sorted(range(len(batch)), key=lambda i: len(batch[i]))
+        results: list[Any] = [None] * len(batch)
+        for start in range(0, len(order), micro_batch_size):
+            indices = order[start : start + micro_batch_size]
+            outputs = list(
+                self._post_process_onnx_output(
+                    self.onnx_embed([batch[i] for i in indices], **kwargs), **kwargs
+                )
+            )
+            if len(outputs) != len(indices):
+                raise RuntimeError(
+                    f"Expected one output per document, got {len(outputs)} for "
+                    f"{len(indices)} documents"
+                )
+            for i, output in zip(indices, outputs):
+                results[i] = output
+        yield from results
+
     def _embed_documents(
         self,
         model_name: str,
@@ -136,6 +169,7 @@ class OnnxTextModel(OnnxModel[T]):
         local_files_only: bool = False,
         specific_model_path: str | None = None,
         extra_session_options: dict[str, Any] | None = None,
+        micro_batch_size: int | None = DEFAULT_MICRO_BATCH_SIZE,
         **kwargs: Any,
     ) -> Iterable[T]:
         is_small = False
@@ -151,9 +185,7 @@ class OnnxTextModel(OnnxModel[T]):
             if not hasattr(self, "model") or self.model is None:
                 self.load_onnx_model()
             for batch in iter_batch(documents, batch_size):
-                yield from self._post_process_onnx_output(
-                    self.onnx_embed(batch, **kwargs), **kwargs
-                )
+                yield from self._embed_batch_sorted(batch, micro_batch_size, **kwargs)
         else:
             if parallel == 0:
                 parallel = os.cpu_count()
