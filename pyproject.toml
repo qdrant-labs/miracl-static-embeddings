@@ -29,6 +29,7 @@ members = [
     "packages/download-queries",
     "packages/download-models",
     "packages/download-fiqa",
+    "packages/plot-fiqa",
     "packages/patched-fastembed",
 ]
 
