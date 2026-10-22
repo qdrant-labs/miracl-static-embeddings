@@ -1,0 +1,235 @@
+import warnings
+from collections.abc import Iterable, Sequence
+from dataclasses import asdict
+from typing import Any
+
+from ..common.model_description import (
+    DenseModelDescription,
+    ModelSource,
+    PoolingType,
+)
+from ..common.types import Device, NumpyArray, OnnxProvider
+from ..text.builtin_sentence_embedding import BuiltinSentenceEmbedding
+from ..text.clip_embedding import CLIPOnnxEmbedding
+from ..text.custom_text_embedding import CustomTextEmbedding
+from ..text.last_token_normalized_embedding import LastTokenNormalizedEmbedding
+from ..text.multitask_embedding import JinaEmbeddingV3
+from ..text.onnx_embedding import OnnxTextEmbedding
+from ..text.pooled_embedding import PooledEmbedding
+from ..text.pooled_normalized_embedding import PooledNormalizedEmbedding
+from ..text.siglip_embedding import SiglipOnnxTextEmbedding
+from ..text.static_embedding import StaticTextEmbedding
+from ..text.text_embedding_base import TextEmbeddingBase
+
+
+class TextEmbedding(TextEmbeddingBase):
+    EMBEDDINGS_REGISTRY: list[type[TextEmbeddingBase]] = [
+        OnnxTextEmbedding,
+        CLIPOnnxEmbedding,
+        SiglipOnnxTextEmbedding,
+        PooledNormalizedEmbedding,
+        PooledEmbedding,
+        JinaEmbeddingV3,
+        BuiltinSentenceEmbedding,
+        LastTokenNormalizedEmbedding,
+        StaticTextEmbedding,
+        CustomTextEmbedding,
+    ]
+
+    @classmethod
+    def list_supported_models(cls) -> list[dict[str, Any]]:
+        """Lists the supported models.
+
+        Returns:
+            list[dict[str, Any]]: A list of dictionaries containing the model information.
+        """
+        return [asdict(model) for model in cls._list_supported_models()]
+
+    @classmethod
+    def _list_supported_models(cls) -> list[DenseModelDescription]:
+        result: list[DenseModelDescription] = []
+        for embedding in cls.EMBEDDINGS_REGISTRY:
+            result.extend(embedding._list_supported_models())
+        return result
+
+    @classmethod
+    def add_custom_model(
+        cls,
+        model: str,
+        pooling: PoolingType,
+        normalization: bool,
+        sources: ModelSource,
+        dim: int,
+        model_file: str = "onnx/model.onnx",
+        description: str = "",
+        license: str = "",
+        size_in_gb: float = 0.0,
+        additional_files: list[str] | None = None,
+        output_name: str | None = None,
+    ) -> None:
+        registered_models = cls._list_supported_models()
+        for registered_model in registered_models:
+            if model.lower() == registered_model.model.lower():
+                raise ValueError(
+                    f"Model {model} is already registered in TextEmbedding, if you still want to add this model, "
+                    f"please use another model name"
+                )
+
+        CustomTextEmbedding.add_model(
+            DenseModelDescription(
+                model=model,
+                sources=sources,
+                dim=dim,
+                model_file=model_file,
+                description=description,
+                license=license,
+                size_in_GB=size_in_gb,
+                additional_files=additional_files or [],
+            ),
+            pooling=pooling,
+            normalization=normalization,
+            output_name=output_name,
+        )
+
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-small-en-v1.5",
+        cache_dir: str | None = None,
+        threads: int | None = None,
+        providers: Sequence[OnnxProvider] | None = None,
+        cuda: bool | Device = Device.AUTO,
+        device_ids: list[int] | None = None,
+        lazy_load: bool = False,
+        **kwargs: Any,
+    ):
+        super().__init__(model_name, cache_dir, threads, **kwargs)
+        if model_name.lower() == "jinaai/jina-embeddings-v2-base-de":
+            warnings.warn(
+                "The model 'jinaai/jina-embeddings-v2-base-de' used to run with fp16 model, but due to onnxruntime updates, now it runs with the original fp32 model.",
+                UserWarning,
+                stacklevel=2,
+            )
+        for EMBEDDING_MODEL_TYPE in self.EMBEDDINGS_REGISTRY:
+            supported_models = EMBEDDING_MODEL_TYPE._list_supported_models()
+            if any(
+                model_name.lower() == model.model.lower() for model in supported_models
+            ):
+                self.model = EMBEDDING_MODEL_TYPE(
+                    model_name=model_name,
+                    cache_dir=cache_dir,
+                    threads=threads,
+                    providers=providers,
+                    cuda=cuda,
+                    device_ids=device_ids,
+                    lazy_load=lazy_load,
+                    **kwargs,
+                )
+                return
+
+        raise ValueError(
+            f"Model {model_name} is not supported in TextEmbedding. "
+            "Please check the supported models using `TextEmbedding.list_supported_models()`"
+        )
+
+    @property
+    def embedding_size(self) -> int:
+        """Get the embedding size of the current model"""
+        if self._embedding_size is None:
+            self._embedding_size = self.get_embedding_size(self.model_name)
+        return self._embedding_size
+
+    @classmethod
+    def get_embedding_size(cls, model_name: str) -> int:
+        """Get the embedding size of the passed model
+
+        Args:
+            model_name (str): The name of the model to get embedding size for.
+
+        Returns:
+            int: The size of the embedding.
+
+        Raises:
+            ValueError: If the model name is not found in the supported models.
+        """
+        descriptions = cls._list_supported_models()
+        embedding_size: int | None = None
+        for description in descriptions:
+            if description.model.lower() == model_name.lower():
+                embedding_size = description.dim
+                break
+        if embedding_size is None:
+            model_names = [description.model for description in descriptions]
+            raise ValueError(
+                f"Embedding size for model {model_name} was None. "
+                f"Available model names: {model_names}"
+            )
+        return embedding_size
+
+    def embed(
+        self,
+        documents: str | Iterable[str],
+        batch_size: int = 256,
+        parallel: int | None = None,
+        **kwargs: Any,
+    ) -> Iterable[NumpyArray]:
+        """
+        Encode a list of documents into list of embeddings.
+        We use mean pooling with attention so that the model can handle variable-length inputs.
+
+        Args:
+            documents: Iterator of documents or single document to embed
+            batch_size: Batch size for encoding -- higher values will use more memory, but be faster
+            parallel:
+                If > 1, data-parallel encoding will be used, recommended for offline encoding of large datasets.
+                If 0, use all available cores.
+                If None, don't use data-parallel processing, use default onnxruntime threading instead.
+
+        Returns:
+            List of embeddings, one per document
+        """
+        yield from self.model.embed(documents, batch_size, parallel, **kwargs)
+
+    def query_embed(
+        self, query: str | Iterable[str], **kwargs: Any
+    ) -> Iterable[NumpyArray]:
+        """
+        Embeds queries
+
+        Args:
+            query (Union[str, Iterable[str]]): The query to embed, or an iterable e.g. list of queries.
+
+        Returns:
+            Iterable[NumpyArray]: The embeddings.
+        """
+        # This is model-specific, so that different models can have specialized implementations
+        yield from self.model.query_embed(query, **kwargs)
+
+    def passage_embed(
+        self, texts: Iterable[str], **kwargs: Any
+    ) -> Iterable[NumpyArray]:
+        """
+        Embeds a list of text passages into a list of embeddings.
+
+        Args:
+            texts (Iterable[str]): The list of texts to embed.
+            **kwargs: Additional keyword argument to pass to the embed method.
+
+        Yields:
+            Iterable[SparseEmbedding]: The sparse embeddings.
+        """
+        # This is model-specific, so that different models can have specialized implementations
+        yield from self.model.passage_embed(texts, **kwargs)
+
+    def token_count(
+        self, texts: str | Iterable[str], batch_size: int = 1024, **kwargs: Any
+    ) -> int:
+        """Returns the number of tokens in the texts.
+
+        Args:
+            texts (str | Iterable[str]): The list of texts to embed.
+            batch_size (int): Batch size for encoding
+
+        Returns:
+            int: Sum of number of tokens in the texts.
+        """
+        return self.model.token_count(texts, batch_size=batch_size, **kwargs)

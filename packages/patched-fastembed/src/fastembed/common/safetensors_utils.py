@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+
 from fastembed.common.types import NumpyArray
 
 # safetensors dtype -> numpy dtype. BF16 has no numpy dtype and is widened to float32 on load.

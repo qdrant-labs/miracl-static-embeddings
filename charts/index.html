@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FiQA charts</title>
+<style>
+  html, body { margin: 0; }
+  body { background: #E2E7F5; font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; color: #28324D; }
+  .frame { padding: 48px; }
+  .canvas { background: #FFFFFF; padding: 48px; max-width: 760px; }
+  h1 { margin: 0 0 8px; font-size: 28px; font-weight: normal; color: #28324D; }
+  p { margin: 0 0 32px; font-size: 18px; color: #717C99; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; flex-direction: column; gap: 4px; padding: 16px 0; border-top: 1px solid #D4D9E6; }
+  a { font-size: 22px; color: #2F6FF0; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  span { font-size: 18px; color: #576280; }
+</style>
+</head>
+<body>
+<div class="frame"><div class="canvas">
+<h1>FiQA charts</h1>
+<p>Embedding models, dense vs hybrid search</p>
+<ul>
+  <li><a href="fiqa_ndcgat10.html">ndcg@10</a><span>Dense vs hybrid ndcg@10 for each embedding model</span></li>
+  <li><a href="fiqa_mrrat10.html">mrr@10</a><span>Dense vs hybrid mrr@10 for each embedding model</span></li>
+  <li><a href="fiqa_recallat10.html">recall@10</a><span>Dense vs hybrid recall@10 for each embedding model</span></li>
+  <li><a href="fiqa_hybrid_gain_ndcgat10.html">hybrid gain, ndcg@10</a><span>Hybrid minus dense nDCG@10 for each embedding model</span></li>
+</ul>
+</div></div>
+</body>
+</html>

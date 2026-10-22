@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from fastembed.common.model_description import DenseModelDescription, ModelSource
-from fastembed.common.types import Device, NumpyArray
-from fastembed.common.utils import define_cache_dir, iter_batch, normalize
-from fastembed.parallel_processor import ParallelWorkerPool, Worker
-from fastembed.text.text_embedding_base import TextEmbeddingBase
 from numpy.typing import NDArray
 from tokenizers import Tokenizer, Truncation
 
-from .safetensors_utils import load_safetensors
+from ..common.model_description import DenseModelDescription, ModelSource
+from ..common.safetensors_utils import load_safetensors
+from ..common.types import Device, NumpyArray
+from ..common.utils import define_cache_dir, iter_batch, normalize
+from ..parallel_processor import ParallelWorkerPool, Worker
+from ..text.text_embedding_base import TextEmbeddingBase
 
 # Same cap as the onnx exports of these models and model2vec's default `max_length`.
 MAX_LENGTH = 512

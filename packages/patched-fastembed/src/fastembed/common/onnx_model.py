@@ -1,0 +1,234 @@
+import warnings
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, TypeVar
+
+import numpy as np
+import onnxruntime as ort
+from loguru import logger
+from numpy.typing import NDArray
+from tokenizers import Tokenizer
+
+from fastembed.common.onnx_external_data import ONNX_SNAPSHOTS_DIR, link_external_data
+from fastembed.common.types import Device, NumpyArray, OnnxProvider
+from fastembed.parallel_processor import Worker
+
+# Holds type of the embedding result
+T = TypeVar("T")
+
+
+@dataclass
+class OnnxOutputContext:
+    model_output: NumpyArray
+    attention_mask: NDArray[np.int64] | None = None
+    input_ids: NDArray[np.int64] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class OnnxModel[T]:
+    EXPOSED_SESSION_OPTIONS = ("enable_cpu_mem_arena",)
+    # set by the concrete model classes in their __init__
+    _model_dir: Path
+
+    @classmethod
+    def _get_worker_class(cls) -> type["EmbeddingWorker[T]"]:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def _get_worker_init_kwargs(self) -> dict[str, Any]:
+        """Additional kwargs a worker process needs to reconstruct this model.
+
+        Workers are started with `spawn`/`forkserver`, hence they don't inherit class-level state
+        which has been set up in runtime, e.g. models registered via `add_custom_model`.
+        Such state has to be shipped to the workers explicitly.
+
+        Returns:
+            dict[str, Any]: kwargs to pass to `_get_worker_class().init_embedding`.
+        """
+        return {}
+
+    def _post_process_onnx_output(
+        self, output: OnnxOutputContext, **kwargs: Any
+    ) -> Iterable[T]:
+        """Post-process the ONNX model output to convert it into a usable format.
+
+        Args:
+            output (OnnxOutputContext): The raw output from the ONNX model.
+            **kwargs: Additional keyword arguments that may be needed by specific implementations.
+
+        Returns:
+            Iterable[T]: Post-processed output as an iterable of type T.
+        """
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def __init__(self) -> None:
+        self.model: ort.InferenceSession | None = None
+        self.tokenizer: Tokenizer | None = None
+
+    def _preprocess_onnx_input(
+        self, onnx_input: dict[str, NumpyArray], **kwargs: Any
+    ) -> dict[str, NumpyArray]:
+        """
+        Preprocess the onnx input.
+        """
+        return onnx_input
+
+    def _load_onnx_model(
+        self,
+        model_dir: Path,
+        model_file: str,
+        threads: int | None,
+        providers: Sequence[OnnxProvider] | None = None,
+        cuda: bool | Device = Device.AUTO,
+        device_id: int | None = None,
+        extra_session_options: dict[str, Any] | None = None,
+        additional_files: list[str] | None = None,
+    ) -> None:
+        # List of Execution Providers: https://onnxruntime.ai/docs/execution-providers
+        available_providers = ort.get_available_providers()
+        cuda_available = "CUDAExecutionProvider" in available_providers
+        explicit_cuda = cuda is True or cuda == Device.CUDA
+
+        if explicit_cuda and providers is not None:
+            warnings.warn(
+                f"`cuda` and `providers` are mutually exclusive parameters, "
+                f"cuda: {cuda}, providers: {providers}. If you'd like to use providers, cuda should be one of "
+                f"[False, Device.CPU, Device.AUTO].",
+                category=UserWarning,
+                stacklevel=6,
+            )
+
+        if providers is not None:
+            onnx_providers = list(providers)
+        elif explicit_cuda or (cuda == Device.AUTO and cuda_available):
+            if device_id is None:
+                onnx_providers = ["CUDAExecutionProvider"]
+            else:
+                onnx_providers = [("CUDAExecutionProvider", {"device_id": device_id})]
+        else:
+            onnx_providers = ["CPUExecutionProvider"]
+
+        requested_provider_names: list[str] = []
+        for provider in onnx_providers:
+            # check providers available
+            provider_name = provider if isinstance(provider, str) else provider[0]
+            requested_provider_names.append(provider_name)
+            if provider_name not in available_providers:
+                raise ValueError(
+                    f"Provider {provider_name} is not available. Available providers: {available_providers}"
+                )
+
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+        if threads is not None:
+            so.intra_op_num_threads = threads
+            so.inter_op_num_threads = threads
+
+        if extra_session_options is not None:
+            self.add_extra_session_options(so, extra_session_options)
+
+        model_path = model_dir / model_file
+        link_error: OSError | None = None
+        try:
+            model_path = link_external_data(
+                model_dir, model_file, additional_files or []
+            )
+        except OSError as e:
+            # e.g. a read-only cache, which onnxruntime<1.24 loads from all the same
+            link_error = e
+
+        try:
+            self.model = ort.InferenceSession(
+                str(model_path), providers=onnx_providers, sess_options=so
+            )
+        except Exception:
+            if link_error is not None:
+                logger.warning(
+                    f"Could not link the files of {model_path} into {ONNX_SNAPSHOTS_DIR}: "
+                    f"{link_error}. onnxruntime>=1.24 refuses external data that resolves "
+                    "outside of the model directory, as in a huggingface_hub>=1.32 cache. "
+                    "Download the model with fastembed into a writable cache_dir on a "
+                    "filesystem with hardlinks, or delete it from the cache and download it "
+                    "again with HF_HUB_DISABLE_SHARED_BLOBS=1."
+                )
+            raise
+        if "CUDAExecutionProvider" in requested_provider_names:
+            assert self.model is not None
+            current_providers = self.model.get_providers()
+            if "CUDAExecutionProvider" not in current_providers:
+                warnings.warn(
+                    f"Attempt to set CUDAExecutionProvider failed. Current providers: {current_providers}."
+                    "If you are using CUDA 12.x, install onnxruntime-gpu via "
+                    "`pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/`",
+                    RuntimeWarning,
+                )
+
+    @classmethod
+    def _select_exposed_session_options(
+        cls, model_kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """A convenience method to select the exposed session options in models
+
+        Args:
+            model_kwargs (dict[str, Any]): The model kwargs.
+
+        Returns:
+            dict[str, Any]: a dict with filtered exposed session options.
+        """
+        return {
+            k: v for k, v in model_kwargs.items() if k in cls.EXPOSED_SESSION_OPTIONS
+        }
+
+    @classmethod
+    def add_extra_session_options(
+        cls, session_options: ort.SessionOptions, extra_options: dict[str, Any]
+    ) -> None:
+        """Add extra session options to the existing options object in-place
+
+        Args:
+            session_options (ort.SessionOptions): The existing session options object.
+            extra_options (dict[str, Any]): The extra session options available in cls.EXPOSED_SESSION_OPTIONS.
+
+        Returns:
+            None
+        """
+        for option in extra_options:
+            assert option in cls.EXPOSED_SESSION_OPTIONS, (
+                f"{option} is unknown or not exposed (exposed options: {cls.EXPOSED_SESSION_OPTIONS})"
+            )
+        if "enable_cpu_mem_arena" in extra_options:
+            session_options.enable_cpu_mem_arena = extra_options["enable_cpu_mem_arena"]
+
+    def load_onnx_model(self) -> None:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def onnx_embed(self, *args: Any, **kwargs: Any) -> OnnxOutputContext:
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class EmbeddingWorker[T](Worker):
+    def init_embedding(
+        self,
+        model_name: str,
+        cache_dir: str,
+        **kwargs: Any,
+    ) -> OnnxModel[T]:
+        raise NotImplementedError()
+
+    def __init__(
+        self,
+        model_name: str,
+        cache_dir: str,
+        **kwargs: Any,
+    ):
+        self.model = self.init_embedding(model_name, cache_dir, **kwargs)
+
+    @classmethod
+    def start(
+        cls, model_name: str, cache_dir: str, **kwargs: Any
+    ) -> "EmbeddingWorker[T]":
+        return cls(model_name=model_name, cache_dir=cache_dir, **kwargs)
+
+    def process(self, items: Iterable[tuple[int, Any]]) -> Iterable[tuple[int, Any]]:
+        raise NotImplementedError("Subclasses must implement this method")

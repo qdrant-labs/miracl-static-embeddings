@@ -1,0 +1,35 @@
+[project]
+name = "patched-fastembed"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "astraberte9@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.1.0",
+    "onnxruntime>1.21.0,!=1.24.0,!=1.24.1",
+    "tokenizers==1.0.0rc2",
+    "tqdm>=4.66,<5",
+    "requests>=2.31,<3",
+    "huggingface-hub>=0.20,<2.0",
+    "loguru>=0.7.2,<0.8",
+    "pillow>=11.0.0,<13.0",
+    "mmh3>=4.1.0,<6.0.0",
+    "py-rust-stemmers>=0.1.0,<0.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "fastembed"
+
+[tool.uv]
+no-binary-package = ["tokenizers"]
+prerelease = "allow"
+
+[tool.uv.extra-build-variables]
+tokenizers = { MATURIN_PEP517_ARGS = "--features tk-encode/fancy-regex,tk-serialize/fancy-regex" }

@@ -15,9 +15,12 @@ prerelease-mode = "allow"
 
 [manifest]
 members = [
+    "download-fiqa",
     "download-models",
     "download-queries",
     "miracl-static-embeddings",
+    "patched-fastembed",
+    "plot-fiqa",
 ]
 
 [[package]]
@@ -370,6 +373,21 @@ wheels = [
 ]
 
 [[package]]
+name = "download-fiqa"
+version = "0.1.0"
+source = { editable = "packages/download-fiqa" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "pyarrow" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "huggingface-hub", specifier = ">=1.33.0" },
+    { name = "pyarrow", specifier = ">=18.0.0" },
+]
+
+[[package]]
 name = "download-models"
 version = "0.1.0"
 source = { editable = "packages/download-models" }
@@ -390,23 +408,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "huggingface-hub", specifier = ">=1.33.0" }]
-
-[[package]]
-name = "fastembed"
-version = "0.9.0"
-source = { git = "https://github.com/qdrant/fastembed?rev=minishlab-numpy-tokenizers-v1#0ef02935723a3a6f506da26aa364989f5a9f8a11" }
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "loguru" },
-    { name = "mmh3" },
-    { name = "numpy" },
-    { name = "onnxruntime" },
-    { name = "pillow" },
-    { name = "py-rust-stemmers" },
-    { name = "requests" },
-    { name = "tokenizers" },
-    { name = "tqdm" },
-]
 
 [[package]]
 name = "filelock"
@@ -699,8 +700,8 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "download-queries" },
-    { name = "fastembed" },
     { name = "hf-xet" },
+    { name = "patched-fastembed" },
     { name = "qdrant-client" },
     { name = "tenacity" },
     { name = "tokenizers" },
@@ -716,8 +717,8 @@ dev = [
 requires-dist = [
     { name = "datasets", specifier = ">=5.1.0" },
     { name = "download-queries", editable = "packages/download-queries" },
-    { name = "fastembed", git = "https://github.com/qdrant/fastembed?rev=minishlab-numpy-tokenizers-v1" },
     { name = "hf-xet", specifier = ">=1.7.0" },
+    { name = "patched-fastembed", editable = "packages/patched-fastembed" },
     { name = "qdrant-client", specifier = ">=1.19.1" },
     { name = "tenacity", specifier = ">=9.2.1" },
     { name = "tokenizers", specifier = "==1.0.0rc2" },
@@ -1129,6 +1130,37 @@ wheels = [
 ]
 
 [[package]]
+name = "patched-fastembed"
+version = "0.1.0"
+source = { editable = "packages/patched-fastembed" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "loguru" },
+    { name = "mmh3" },
+    { name = "numpy" },
+    { name = "onnxruntime" },
+    { name = "pillow" },
+    { name = "py-rust-stemmers" },
+    { name = "requests" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "huggingface-hub", specifier = ">=0.20,<2.0" },
+    { name = "loguru", specifier = ">=0.7.2,<0.8" },
+    { name = "mmh3", specifier = ">=4.1.0,<6.0.0" },
+    { name = "numpy", specifier = ">=2.1.0" },
+    { name = "onnxruntime", specifier = ">1.21.0,!=1.24.0,!=1.24.1" },
+    { name = "pillow", specifier = ">=11.0.0,<13.0" },
+    { name = "py-rust-stemmers", specifier = ">=0.1.0,<0.2" },
+    { name = "requests", specifier = ">=2.31,<3" },
+    { name = "tokenizers", specifier = "==1.0.0rc2" },
+    { name = "tqdm", specifier = ">=4.66,<5" },
+]
+
+[[package]]
 name = "pillow"
 version = "12.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1189,6 +1221,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e4/04/62bcd9f844984c5938d3b05264a61d797a29d3e0812341a8204af70bbdee/pillow-12.3.0-cp315-cp315t-win_amd64.whl", hash = "sha256:8cd2f7bdda092d99c9fc2fb7391354f306d01443d22785d0cbfafa2e2c8bb418", size = 7243537, upload-time = "2026-07-01T11:56:21.214Z" },
     { url = "https://files.pythonhosted.org/packages/3d/68/1f3066acedf37673694a7141381d8f811ae97f30d34413d236abe7d489f1/pillow-12.3.0-cp315-cp315t-win_arm64.whl", hash = "sha256:06ff022112bc9cbf83b60f8e028d94ad87b60621706487e65f673de61610ab59", size = 2567491, upload-time = "2026-07-01T11:56:23.506Z" },
 ]
+
+[[package]]
+name = "plot-fiqa"
+version = "0.1.0"
+source = { editable = "packages/plot-fiqa" }
 
 [[package]]
 name = "portalocker"
