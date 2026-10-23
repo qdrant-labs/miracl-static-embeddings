@@ -23,7 +23,7 @@ def get_qdrant_client() -> AsyncQdrantClient:
     url = os.getenv("QDRANT_URL")
     if url is None:
         raise RuntimeError("Could not find QDRANT_URL in the current environment")
-    return AsyncQdrantClient(api_key=key, url=url)
+    return AsyncQdrantClient(api_key=key, url=url, timeout=600, prefer_grpc=True)
 
 
 @functools.lru_cache(maxsize=1)
@@ -90,6 +90,7 @@ async def export_slice(
                     offset=offset,
                     with_vectors=True,
                     with_payload=True,
+                    timeout=600,
                 )
                 if points:
                     # conversion is CPU work: keep it off the event loop
