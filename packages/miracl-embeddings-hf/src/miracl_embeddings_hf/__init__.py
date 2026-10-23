@@ -45,7 +45,7 @@ class SliceWritingStatus(StrEnum):
 
 
 def to_table(points: list[models.Record], vectors_dim: int) -> pa.Table:
-    vecs = np.asarray([p.vector for p in points], dtype=np.float32)
+    vecs = np.asarray([cast(dict[str, list[float]], p.vector)["dense"] for p in points], dtype=np.float32)
     vec_col = pa.FixedSizeListArray.from_arrays(pa.array(vecs.ravel()), vectors_dim)
     doc_ids = [cast(models.Payload, p.payload).get("docid") for p in points]
     texts = [cast(models.Payload, p.payload).get("text") for p in points]
