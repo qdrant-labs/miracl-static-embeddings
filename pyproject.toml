@@ -31,6 +31,7 @@ members = [
     "packages/download-fiqa",
     "packages/plot-fiqa",
     "packages/patched-fastembed",
+    "packages/miracl-embeddings-hf",
 ]
 
 [tool.uv.sources]
