@@ -21,7 +21,7 @@ members = [
     "miracl-embeddings-hf",
     "miracl-static-embeddings",
     "patched-fastembed",
-    "plot-fiqa",
+    "plot-results",
 ]
 
 [[package]]
@@ -1271,9 +1271,9 @@ wheels = [
 ]
 
 [[package]]
-name = "plot-fiqa"
+name = "plot-results"
 version = "0.1.0"
-source = { editable = "packages/plot-fiqa" }
+source = { editable = "packages/plot-results" }
 
 [[package]]
 name = "portalocker"

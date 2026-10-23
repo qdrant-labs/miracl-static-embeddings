@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FiQA embedding throughput</title>
+<style>
+  html, body { margin: 0; }
+  body { background: #E2E7F5; font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  .frame { display: inline-block; padding: 48px; }
+  .canvas { background: #FFFFFF; padding: 24px; }
+  svg { display: block; font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+<div class="frame"><div class="canvas">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 0 1170 620" width="1170" height="620">
+<line x1="80" y1="500.0" x2="1080" y2="500.0" stroke="#28324D" stroke-width="2"/>
+<text x="66.0" y="506.0" font-size="18" fill="#717C99" text-anchor="end">1</text>
+<line x1="80" y1="414.0" x2="1080" y2="414.0" stroke="#D4D9E6" stroke-width="1"/>
+<text x="66.0" y="420.0" font-size="18" fill="#717C99" text-anchor="end">10</text>
+<line x1="80" y1="328.0" x2="1080" y2="328.0" stroke="#D4D9E6" stroke-width="1"/>
+<text x="66.0" y="334.0" font-size="18" fill="#717C99" text-anchor="end">100</text>
+<line x1="80" y1="242.0" x2="1080" y2="242.0" stroke="#D4D9E6" stroke-width="1"/>
+<text x="66.0" y="248.0" font-size="18" fill="#717C99" text-anchor="end">1,000</text>
+<line x1="80" y1="156.0" x2="1080" y2="156.0" stroke="#D4D9E6" stroke-width="1"/>
+<text x="66.0" y="162.0" font-size="18" fill="#717C99" text-anchor="end">10,000</text>
+<line x1="80" y1="70.0" x2="1080" y2="70.0" stroke="#D4D9E6" stroke-width="1"/>
+<text x="66.0" y="76.0" font-size="18" fill="#717C99" text-anchor="end">100,000</text>
+<text x="-48" y="285.0" font-size="20" fill="#576280" text-anchor="middle" transform="rotate(-90 -48 285.0)">documents per second (log)</text>
+<text x="580.0" y="602.0" font-size="20" fill="#576280" text-anchor="middle">embedding model</text>
+<rect x="155.0" y="149.6" width="100.0" height="350.4" fill="#2F6FF0"/>
+<text x="205.0" y="137.6" font-size="22" fill="#28324D" text-anchor="middle">11,863</text>
+<text x="205.0" y="536.0" font-size="20" fill="#576280" text-anchor="middle">potion</text><text x="205.0" y="562.0" font-size="20" fill="#576280" text-anchor="middle">base-8M</text>
+<rect x="405.0" y="177.3" width="100.0" height="322.7" fill="#2F6FF0"/>
+<text x="455.0" y="165.3" font-size="22" fill="#28324D" text-anchor="middle">5,653</text>
+<text x="455.0" y="536.0" font-size="20" fill="#576280" text-anchor="middle">potion</text><text x="455.0" y="562.0" font-size="20" fill="#576280" text-anchor="middle">retrieval-32M</text>
+<rect x="655.0" y="190.6" width="100.0" height="309.4" fill="#2F6FF0"/>
+<text x="705.0" y="178.6" font-size="22" fill="#28324D" text-anchor="middle">3,961</text>
+<text x="705.0" y="536.0" font-size="20" fill="#576280" text-anchor="middle">potion</text><text x="705.0" y="562.0" font-size="20" fill="#576280" text-anchor="middle">multilingual-128M</text>
+<rect x="905.0" y="426.6" width="100.0" height="73.4" fill="#2F6FF0"/>
+<text x="955.0" y="414.6" font-size="22" fill="#28324D" text-anchor="middle">7.1</text>
+<text x="955.0" y="536.0" font-size="20" fill="#576280" text-anchor="middle">stella-400M-v5</text><text x="955.0" y="562.0" font-size="20" fill="#576280" text-anchor="middle">+ constella-zero</text>
+</svg>
+</div></div>
+</body>
+</html>

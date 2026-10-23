@@ -1,13 +1,13 @@
 [project]
-name = "plot-fiqa"
+name = "plot-results"
 version = "0.1.0"
-description = "Static charts comparing embedding models and dense/hybrid search on FiQA"
+description = "Static charts comparing embedding models and dense/hybrid search on FiQA and MIRACL"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
 
 [project.scripts]
-plot-fiqa = "plot_fiqa:main"
+plot-results = "plot_results:main"
 
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
