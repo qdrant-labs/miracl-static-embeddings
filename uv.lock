@@ -729,14 +729,14 @@ name = "miracl-embeddings-hf"
 version = "0.1.0"
 source = { editable = "packages/miracl-embeddings-hf" }
 dependencies = [
-    { name = "datasets" },
+    { name = "huggingface-hub" },
     { name = "qdrant-client" },
     { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "datasets", specifier = ">=5.1.0" },
+    { name = "huggingface-hub", specifier = ">=1.33.0" },
     { name = "qdrant-client", specifier = ">=1.19.1" },
     { name = "typer", specifier = ">=0.27.3" },
 ]

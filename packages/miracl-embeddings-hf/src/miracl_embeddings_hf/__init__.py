@@ -9,6 +9,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 import typer
+from huggingface_hub import HfApi
 from qdrant_client import AsyncQdrantClient, models
 
 app = typer.Typer()
@@ -38,6 +39,14 @@ def get_schema(vectors_dim: int) -> pa.Schema:
     )
 
 
+@functools.lru_cache(maxsize=1)
+def get_hf_client() -> HfApi:
+    token = os.getenv("HF_TOKEN")
+    if token is None:
+        raise RuntimeError("Could not find HF_TOKEN in the current environment")
+    return HfApi(token=token)
+
+
 class SliceWritingStatus(StrEnum):
     DONE = "done"
     SKIPPED = "skipped"
@@ -45,7 +54,10 @@ class SliceWritingStatus(StrEnum):
 
 
 def to_table(points: list[models.Record], vectors_dim: int) -> pa.Table:
-    vecs = np.asarray([cast(dict[str, list[float]], p.vector)["dense"] for p in points], dtype=np.float32)
+    vecs = np.asarray(
+        [cast(dict[str, list[float]], p.vector)["dense"] for p in points],
+        dtype=np.float32,
+    )
     vec_col = pa.FixedSizeListArray.from_arrays(pa.array(vecs.ravel()), vectors_dim)
     doc_ids = [cast(models.Payload, p.payload).get("docid") for p in points]
     texts = [cast(models.Payload, p.payload).get("text") for p in points]
@@ -160,3 +172,31 @@ def to_parquet(
     ] = 8,
 ) -> None:
     asyncio.run(main(num_slices, collection_name, output_dir, vector_dims, concurrency))
+
+
+@app.command(name="to-hf", help="Upload the Parquet folder to HuggingFace")
+def to_hf(
+    parquet_dir: Annotated[
+        str, typer.Argument(help="Directory containing parquet files to load")
+    ],
+    dataset_owner: Annotated[str, typer.Option("--owner", help="Owner of the dataset")],
+    dataset_name: Annotated[str, typer.Option("--name", help="Name of the dataset")],
+    num_workers: Annotated[
+        int,
+        typer.Option("--workers", help="Number of concurrent workers for the upload"),
+    ] = 8,
+) -> None:
+    hf = get_hf_client()
+    hf.create_repo(
+        repo_id=f"{dataset_owner}/{dataset_name}",
+        repo_type="dataset",
+        private=False,
+        exist_ok=False,
+    )
+    hf.upload_large_folder(
+        repo_id=f"{dataset_owner}/{dataset_name}",
+        folder_path=parquet_dir,
+        repo_type="dataset",
+        allow_patterns=".parquet",
+        num_workers=num_workers,
+    )
