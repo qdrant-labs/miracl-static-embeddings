@@ -181,10 +181,10 @@ def to_hf(
     ],
     dataset_owner: Annotated[str, typer.Option("--owner", help="Owner of the dataset")],
     dataset_name: Annotated[str, typer.Option("--name", help="Name of the dataset")],
-    num_workers: Annotated[
-        int,
-        typer.Option("--workers", help="Number of concurrent workers for the upload"),
-    ] = 8,
+    commit_message: Annotated[
+        str | None,
+        typer.Option("--message", help="Commit message for the upload"),
+    ] = None,
 ) -> None:
     hf = get_hf_client()
     hf.create_repo(
@@ -193,10 +193,11 @@ def to_hf(
         private=False,
         exist_ok=False,
     )
-    hf.upload_large_folder(
+    hf.upload_folder(
         repo_id=f"{dataset_owner}/{dataset_name}",
         folder_path=parquet_dir,
+        path_in_repo="data",
         repo_type="dataset",
-        allow_patterns=".parquet",
-        num_workers=num_workers,
+        allow_patterns="*.parquet",
+        commit_message=commit_message,
     )
