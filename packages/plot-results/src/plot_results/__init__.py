@@ -52,10 +52,11 @@ MIRACL = Dataset(
     title="MIRACL English",
     models={
         "8M": ("potion", "base-8M"),
+        "32M": ("potion", "retrieval-32M"),
         "128M": ("potion", "multilingual-128M"),
     },
     eval_file="{mode}_{model}_eval.json",
-    y_max=0.4,
+    y_max=0.5,
 )
 
 
@@ -245,7 +246,7 @@ def delta_chart(scores: Scores, dataset: Dataset, metric: str = "ndcg@10") -> st
 def load_time_chart(times: dict[str, tuple[float, float]], dataset: Dataset) -> str:
     """Stacked columns, in minutes: embedding time on the bottom, upload time above."""
     to_min = {m: (e / 60, u / 60) for m, (e, u) in times.items()}
-    y_max = 600
+    y_max = math.ceil(max(sum(t) for t in to_min.values()) / 100) * 100
     y = Scale(0, y_max, PLOT_B, PLOT_T)
     out = _axes(
         y, range(0, y_max + 1, 100), "load time, minutes", "embedding model", ".0f"
@@ -273,7 +274,7 @@ def load_time_chart(times: dict[str, tuple[float, float]], dataset: Dataset) -> 
             _text(
                 right,
                 (PLOT_B + y_emb) / 2 + 7,
-                f"{emb:.0f} min embedding",
+                f"{emb:.0f} min",
                 20,
                 N30,
                 "start",
@@ -283,7 +284,7 @@ def load_time_chart(times: dict[str, tuple[float, float]], dataset: Dataset) -> 
             _text(
                 right,
                 (y_emb + y_total) / 2 + 7,
-                f"{upl:.0f} min upload",
+                f"{upl:.0f} min",
                 20,
                 N30,
                 "start",

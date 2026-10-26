@@ -55,11 +55,12 @@ Loading means embedding each batch of 256 passages and uploading it to Qdrant. W
 | Model | Embedding time | Throughput | Upload time | Total |
 |---|---|---|---|---|
 | `potion-base-8M` | 35 min | 15,563 passages per second | 8.3 h | 8.9 h |
+| `potion-retrieval-32M` | 38 min | 14,403 passages per second | 10.1 h | 10.8 h |
 | `potion-multilingual-128M` | 47 min | 11,613 passages per second | 8.4 h | 9.2 h |
 
-![Stacked bars of load time in minutes for two models. Embedding takes 35 and 47 minutes, and uploading takes about 500 minutes for each.](img/miracl_load_time.png)
+![Stacked bars of load time in minutes for three models. Embedding takes 35, 38, and 47 minutes, and uploading takes between 500 and 608 minutes.](img/miracl_load_time.png)
 
-The static models embed the whole corpus in under an hour. That is 6.6% of the load time for the 8M model and 8.5% for the 128M model. The rest is upload, which depends on the network and on how fast Qdrant ingests, and it doesn't change with the embedding model. In other words, once the embedder is this fast, the load is limited by moving the data, and a bigger static model costs only a few more minutes.
+The static models embed the whole corpus in under an hour. That is between 5.9% and 8.5% of the load time. The rest is upload, which depends on the network and on how fast Qdrant ingests. It varies by run, and it was longest for the 32M model, which sends 512-dimensional vectors instead of 256. In other words, once the embedder is this fast, the load is limited by moving the data, and a bigger static model costs only a few more minutes.
 
 To see what that means in practice, compare it with a transformer on a smaller corpus. We loaded FiQA with every model and measured embedding throughput.
 
@@ -97,37 +98,21 @@ Hybrid search slightly hurts the stella pipeline (-0.023). Its dense scores are 
 
 ## MIRACL Results
 
-On the full MIRACL English corpus, the picture is the same in shape.
+On the full MIRACL English corpus, the retrieval-tuned 32M model stands out.
 
 | Setup | nDCG@10 | MRR@10 | recall@10 |
 |---|---|---|---|
 | `potion-base-8M`, dense | 0.112 | 0.141 | 0.158 |
+| `potion-retrieval-32M`, dense | 0.270 | 0.279 | 0.399 |
 | `potion-multilingual-128M`, dense | 0.053 | 0.070 | 0.072 |
 | `potion-base-8M`, hybrid | 0.234 | 0.295 | 0.309 |
 
-![Grouped bars of nDCG@10 on MIRACL English. The 8M model scores 0.112 dense and 0.234 hybrid, and the 128M model scores 0.053 dense.](img/miracl_ndcgat10.png)
+![Grouped bars of nDCG@10 on MIRACL English. The 8M model scores 0.112 dense and 0.234 hybrid, the 32M model scores 0.270 dense, and the 128M model scores 0.053 dense.](img/miracl_ndcgat10.png)
 
-Hybrid search doubles the nDCG@10 of the 8M model, from 0.112 to 0.234. Retrieving from 32.9 million passages is a much harder problem than retrieving from 57,638, so absolute scores are low for every setup. We didn't run the stella pipeline on MIRACL for the reason in the throughput section, so there is no transformer baseline on this corpus. The quality gap in this post comes from FiQA only.
+Dense `potion-retrieval-32M` scores 0.270 nDCG@10, 2.4 times the dense 8M model and higher than the 8M model with hybrid search. Hybrid search itself doubles the 8M model's score, from 0.112 to 0.234. Retrieving from 32.9 million passages is a much harder problem than retrieving from 57,638, so absolute scores are low for every setup. We didn't run the stella pipeline on MIRACL for the reason in the throughput section, so there is no transformer baseline on this corpus. The quality gap in this post comes from FiQA only.
 
 ## What This Means
 
 Static embeddings suit the case where embedding volume is the problem. If you need to embed tens of millions of passages quickly, re-embed often, or run on hardware without a GPU, they turn the embedding step from the bottleneck into a rounding error. Upload time dominates the load.
 
 They don't replace a good dense model on quality. If retrieval quality is what matters, a transformer on the document side is still far ahead on FiQA, and the asymmetric stella setup shows one way to keep its quality while making the query path cheap. Hybrid search is the most effective fix we measured for static models, and it costs one extra sparse vector per point.
-
-<!--## Caveats
-
-- Each number comes from a single run. We didn't measure variance.
-- We evaluated on training queries, with default search settings and no tuning.
-- Embedding throughput on FiQA and MIRACL isn't directly comparable: the corpora differ, and the FiQA runs used different batch sizes (the batch counts imply 256 for the 8M model and 64 for the others).
-- The stella throughput comes from one run on a laptop. A GPU, a different execution provider, or a quantized export would move it.
-- The multilingual model is penalized by an English-only benchmark. It deserves a multilingual one.
-- The hybrid run for `potion-multilingual-128M` on MIRACL isn't finished yet.
-
-## Notes for the Next Draft (Remove Before Publishing)
-
-- Check the Model2Vec description against the Model2Vec documentation, and add the exact base model of each `potion` variant.
-- Confirm that the MIRACL English corpus has 32.9 million passages (we inferred it from 128,490 batches of 256).
-- Decide whether to add a stella run on a sample of MIRACL, so the quality gap has a second data point.
-- Run `potion-retrieval-32M` on the full MIRACL corpus.
-- Add the quantization results (scalar, binary, TurboQuant) if they belong in this post.-->
