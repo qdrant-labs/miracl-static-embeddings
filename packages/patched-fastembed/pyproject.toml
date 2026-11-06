@@ -33,3 +33,6 @@ prerelease = "allow"
 
 [tool.uv.extra-build-variables]
 tokenizers = { MATURIN_PEP517_ARGS = "--features tk-encode/fancy-regex,tk-serialize/fancy-regex" }
+
+[dependency-groups]
+dev = ["pytest>=8.0"]

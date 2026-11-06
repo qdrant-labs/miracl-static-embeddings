@@ -1,0 +1,21 @@
+{
+  "tokenizers": "1.0.0rc2",
+  "model": "potion-retrieval-32M",
+  "documents": 2048,
+  "tokens": 307200,
+  "total_wall_ms": 284.3201979994774,
+  "stages": {
+    "tokenization": {
+      "wall_ms": 33.72730701812543,
+      "cpu_ms": 470.821696999991
+    },
+    "lookup": {
+      "wall_ms": 91.36501705506817,
+      "cpu_ms": 1253.0145209999687
+    },
+    "pooling": {
+      "wall_ms": 156.05002296797466,
+      "cpu_ms": 2166.587439999972
+    }
+  }
+}
